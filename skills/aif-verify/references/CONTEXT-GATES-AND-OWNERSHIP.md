@@ -23,6 +23,13 @@ Canonical contract for AI Factory workflow commands. This file defines:
 | `aif-review` | Review output/comments only | Context artifacts are read-only gates | No context artifact writes by default unless user explicitly asks |
 | `aif-verify` | Verification report output | Context artifacts are read-only gates | May move to fix flow after user confirmation; no default context artifact writes |
 
+## Artifact Update Policy (Recommended)
+
+- **Owner writes only:** An artifact should be updated by its owner command.
+- **Implement may do factual deltas:** `aif-implement` may update `.ai-factory/DESCRIPTION.md` and `.ai-factory/ARCHITECTURE.md` only when implementation materially changed stack/structure; it may mark roadmap milestones complete when evidence is clear.
+- **Verify stays read-only:** `aif-verify` reports drift and suggests owner commands; it does not update context artifacts by default.
+- **Rules are explicit:** Only `aif-rules` edits `.ai-factory/RULES.md`. Other commands may propose candidate rules and instruct the user to run `/aif-rules`.
+
 ## Context Gates (commit/review/verify)
 
 These commands evaluate context consistency against:

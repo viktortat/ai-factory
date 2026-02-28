@@ -34,6 +34,8 @@ Both modes explore your codebase for patterns, create tasks with dependencies, a
 
 If `.ai-factory/RESEARCH.md` exists, `/aif-plan` reads the `Active Summary` and includes it as `Research Context` in the plan.
 
+If `.ai-factory/ROADMAP.md` exists, `/aif-plan` may also capture a `Roadmap Linkage` section (milestone name + brief rationale) to make milestone alignment explicit.
+
 **Parallel mode** — work on multiple features simultaneously using `git worktree`:
 ```
 /aif-plan full --parallel Add Stripe checkout

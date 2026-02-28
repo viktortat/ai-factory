@@ -34,6 +34,10 @@ Use this context when:
 - Planning file structure (follow project conventions)
 - **Follow architecture guidelines from `.ai-factory/ARCHITECTURE.md` when planning file structure and task organization**
 
+**OPTIONAL (recommended):** Read `.ai-factory/ROADMAP.md` if it exists:
+- Use it to link this plan to a specific milestone (when applicable)
+- This reduces ambiguity in `/aif-implement` milestone completion and `/aif-verify` roadmap gates
+
 **OPTIONAL (recommended):** Read `.ai-factory/RESEARCH.md` if it exists:
 - Treat `## Active Summary (input for /aif-plan)` as an additional requirements source
 - Carry over constraints/decisions into tasks and plan settings
@@ -154,7 +158,11 @@ AskUserQuestion: Before we start, a few questions:
    - [ ] Yes, update docs (/aif-docs)
    - [ ] No, skip docs
 
-4. Any specific requirements or constraints?
+4. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
+   - [ ] Link this plan to a milestone
+   - [ ] Skip — no linkage
+
+5. Any specific requirements or constraints?
 ```
 
 **Default to verbose logging.** AI-generated code benefits greatly from extensive logging because:
@@ -163,6 +171,11 @@ AskUserQuestion: Before we start, a few questions:
 - Missing logs during development wastes debugging time
 
 Store all preferences — they will be used in the plan file and passed to `/aif-implement`.
+
+**If `.ai-factory/ROADMAP.md` exists and the user chose milestone linkage:**
+- Read `.ai-factory/ROADMAP.md` and list candidate milestones (prefer unchecked items)
+- Ask the user to pick one milestone (or type a custom one)
+- Store the selected milestone name and a 1-sentence rationale for inclusion in the plan file
 
 ### Step 1.4: Create Branch or Worktree
 
@@ -257,6 +270,10 @@ AskUserQuestion: Before we start:
    - [ ] No, skip tests
 
 2. Any specific requirements or constraints?
+
+3. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
+   - [ ] Link this plan to a milestone
+   - [ ] Skip — no linkage
 ```
 
 **Plan file:** Always `.ai-factory/PLAN.md` (no branch, no branch-named file).
@@ -345,9 +362,14 @@ mkdir -p .ai-factory/plans  # only when saving to branch-named plan files
 - Title with feature name
 - Branch and creation date
 - `Settings` section (Testing, Logging, Docs)
+- `Roadmap Linkage` section (optional, only if `.ai-factory/ROADMAP.md` exists)
 - `Research Context` section (optional, if `.ai-factory/RESEARCH.md` exists)
 - `Tasks` section grouped by phases
 - `Commit Plan` section when there are 5+ tasks
+
+If `.ai-factory/ROADMAP.md` exists:
+- If the user linked a milestone, write `## Roadmap Linkage` with `Milestone: "..."` and `Rationale: ...`
+- If the user skipped linkage, write `## Roadmap Linkage` with `Milestone: "none"`
 
 If `.ai-factory/RESEARCH.md` exists:
 - Include `## Research Context` by copying only the `Active Summary` (do not paste full `Sessions`)
@@ -487,6 +509,7 @@ Use canonical examples in `references/TASK-FORMAT.md`:
 7. **Commit checkpoints for large plans** — 5+ tasks need commit plan with checkpoints every 3-5 tasks
 8. **Plan file location** — Fast mode: `.ai-factory/PLAN.md`. Full mode: `.ai-factory/plans/<branch-name>.md`
 9. **Ownership boundary** — This command owns plan files only (`.ai-factory/PLAN.md`, `.ai-factory/plans/<branch>.md`). Use owner commands (`/aif-roadmap`, `/aif-rules`, `/aif-explore`) for their artifacts.
+10. **Roadmap linkage (when available)** — If `.ai-factory/ROADMAP.md` exists, include a `## Roadmap Linkage` section in the plan (or explicitly state it was skipped).
 
 ## Plan File Handling
 

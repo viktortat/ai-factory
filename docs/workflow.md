@@ -207,7 +207,7 @@ High-level project planning. Creates `.ai-factory/ROADMAP.md` — a strategic ch
 /aif-plan full --parallel Add Stripe checkout      # Parallel worktree
 ```
 
-Two modes — **fast** (no branch, saves to `.ai-factory/PLAN.md`) and **full** (creates git branch, asks about testing/logging/docs, saves to `.ai-factory/plans/<branch>.md`). Analyzes requirements, explores codebase for patterns, creates tasks with dependencies. For 5+ tasks, includes commit checkpoints. For parallel work on multiple features, use `full --parallel` to create isolated worktrees.
+Two modes — **fast** (no branch, saves to `.ai-factory/PLAN.md`) and **full** (creates git branch, asks about testing/logging/docs and optional roadmap milestone linkage when `.ai-factory/ROADMAP.md` exists, saves to `.ai-factory/plans/<branch>.md`). Analyzes requirements, explores codebase for patterns, creates tasks with dependencies. For 5+ tasks, includes commit checkpoints. For parallel work on multiple features, use `full --parallel` to create isolated worktrees.
 
 ### `/aif-improve [prompt]` — refine the plan
 

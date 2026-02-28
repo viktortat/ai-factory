@@ -235,7 +235,7 @@ Evaluate and report each gate explicitly:
   - Fail: clear violation of explicit rule text
 
 - **Roadmap gate**
-  - Pass: work aligns with existing milestone direction
+  - Pass: work aligns with existing milestone direction (prefer `## Roadmap Linkage` from the plan when present)
   - Warn: `.ai-factory/ROADMAP.md` missing, ambiguous mapping, or no milestone linkage for `feat`/`fix`/`perf` scope
   - Fail (strict mode): clear roadmap contradiction, or missing milestone linkage for `feat`/`fix`/`perf` when roadmap exists
 
@@ -251,6 +251,27 @@ Strict mode behavior:
 Logging/reporting format:
 - Non-blocking findings: `WARN [gate-name] ...`
 - Blocking findings: `ERROR [gate-name] ...`
+
+### 3.6 Context Drift (Optional Remediation)
+
+`/aif-verify` is **read-only** for context artifacts. Do not edit or regenerate `.ai-factory/*` files here.
+
+If you detect that a context artifact is stale, missing, or ambiguous, report it as a drift finding and provide the owner-command remediation:
+
+- `DESCRIPTION.md` drift → suggest `/aif` (or note that `/aif-implement` should have updated it during implementation)
+- `ARCHITECTURE.md` drift → suggest `/aif-architecture`
+- `ROADMAP.md` drift → suggest `/aif-roadmap check` (or `/aif-roadmap <update request>`)
+- `RULES.md` drift → suggest `/aif-rules <rule text>`
+
+Ask the user a single optional question **only if** drift was detected and fixing it now would materially improve correctness:
+
+```
+AskUserQuestion: Context drift detected. Capture updates now?
+
+Options:
+1. Yes — show the exact commands to run (recommended)
+2. No — proceed without updating context
+```
 
 ---
 

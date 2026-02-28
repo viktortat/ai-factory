@@ -33,6 +33,11 @@ Typical structure:
 - `## Active Summary (input for /aif-plan)` — compact, up-to-date snapshot
 - `## Sessions` — append-only history (keep prior notes verbatim)
 
+## Roadmap Linkage (Optional)
+
+If `.ai-factory/ROADMAP.md` exists, `/aif-plan` may include a `## Roadmap Linkage` section in the plan file.
+This makes milestone alignment explicit for `/aif-implement` completion marking and `/aif-verify` roadmap gates.
+
 **Example plan file:**
 
 ```markdown

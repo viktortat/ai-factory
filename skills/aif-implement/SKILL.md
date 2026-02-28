@@ -302,9 +302,43 @@ What's next?
 
 If `.ai-factory/ROADMAP.md` exists:
 1. Read it
+1.1. If the plan file includes `## Roadmap Linkage` with a non-`none` milestone, prefer that milestone for completion marking
 2. Check if the completed work corresponds to any unchecked milestone
 3. If yes — mark it `[x]` and add entry to the Completed table with today's date
 4. Tell the user which milestone was marked done
+
+### Context Maintenance (Artifacts)
+
+Only do this step when there is something concrete to capture.
+
+**DESCRIPTION.md (allowed in this command):**
+- If this plan introduced new dependencies/integrations or changed the stack, update `.ai-factory/DESCRIPTION.md` with factual deltas only.
+- Do not rewrite unrelated sections.
+
+**ARCHITECTURE.md + AGENTS.md (allowed in this command):**
+- If new modules/layers/folders were added (or dependency rules changed), update `.ai-factory/ARCHITECTURE.md` to reflect the new structure and constraints.
+- If you maintain `AGENTS.md` structure maps or entry points, refresh them only when they are now incorrect.
+
+**ROADMAP.md (allowed, limited):**
+- This command may mark milestone completion when evidence is clear.
+- If milestone mapping is ambiguous, emit `WARN [roadmap] ...` and suggest the owner command:
+  - `/aif-roadmap check`
+  - or `/aif-roadmap <short update request>`
+
+**RULES.md (NOT allowed in this command):**
+- Never edit `.ai-factory/RULES.md` from `/aif-implement`.
+- If you discovered repeatable conventions/pitfalls during implementation, propose up to 3 candidate rules and ask the user to add them via `/aif-rules`.
+- Do not invoke `/aif-rules` automatically (it is user-invoked).
+
+If candidate rules exist:
+
+```
+AskUserQuestion: Capture new project rules in `.ai-factory/RULES.md`?
+
+Options:
+1. Yes — output `/aif-rules ...` commands (recommended)
+2. No — skip
+```
 
 ### Context Cleanup
 
