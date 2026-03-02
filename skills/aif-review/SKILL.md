@@ -24,6 +24,20 @@ Perform thorough code reviews focusing on correctness, security, performance, an
 2. Use `gh pr diff <number>` to get the diff
 3. Review all changes in the PR
 
+## Context Gates (Read-Only)
+
+Before finalizing review findings, run read-only context gates:
+
+- Check `.ai-factory/ARCHITECTURE.md` (if present) for boundary/dependency alignment issues.
+- Check `.ai-factory/RULES.md` (if present) for explicit convention violations.
+- Check `.ai-factory/ROADMAP.md` (if present) for milestone alignment and mention missing linkage for likely `feat`/`fix`/`perf` work.
+
+Gate result severity:
+- `WARN` for non-blocking inconsistencies or missing optional files.
+- `ERROR` only for explicit blocking criteria requested by the user/review policy.
+
+`/aif-review` is read-only for context artifacts by default. Do not modify context files unless user explicitly asks.
+
 ### Project Context
 
 **Read `.ai-factory/skill-context/aif-review/SKILL.md`** — MANDATORY if the file exists.
@@ -92,6 +106,9 @@ If any rule is violated — fix the output before presenting it to the user.
 
 **Files Reviewed:** [count]
 **Risk Level:** 🟢 Low / 🟡 Medium / 🔴 High
+
+### Context Gates
+[Architecture / Rules / Roadmap gate results with WARN/ERROR labels]
 
 ### Critical Issues
 [Must be fixed before merge]

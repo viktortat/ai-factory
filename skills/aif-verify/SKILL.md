@@ -23,6 +23,15 @@ Verify that the completed implementation matches the plan, nothing was missed, a
 
 ## Step 0: Load Context
 
+### 0.0 Load Ownership and Gate Contract
+
+- Read `references/CONTEXT-GATES-AND-OWNERSHIP.md` first.
+- Treat it as the canonical source for:
+  - command-to-artifact ownership,
+  - read-only behavior for `aif-commit`/`aif-review`/`aif-verify`,
+  - normal vs strict context-gate thresholds.
+- If this contract conflicts with older examples in this file, follow the contract.
+
 ### 0.1 Find Plan File
 
 Same logic as `/aif-implement`:
@@ -49,6 +58,9 @@ Options:
 - Read the plan file to understand what was supposed to be implemented
 - `TaskList` → get all tasks and their statuses
 - Read `.ai-factory/DESCRIPTION.md` for project context (tech stack, conventions)
+- Read `.ai-factory/ARCHITECTURE.md` for dependency and boundary rules (if present)
+- Read `.ai-factory/RULES.md` for project-specific conventions (if present)
+- Read `.ai-factory/ROADMAP.md` for milestone alignment checks (if present)
 
 **Read `.ai-factory/skill-context/aif-verify/SKILL.md`** — MANDATORY if the file exists.
 
@@ -226,6 +238,61 @@ Check if `.ai-factory/DESCRIPTION.md` reflects the current state:
 - Architecture changes → should be reflected
 - New integrations → should be documented
 
+### 3.5 Context Gates (Architecture / Roadmap / Rules)
+
+Apply the canonical contract from `references/CONTEXT-GATES-AND-OWNERSHIP.md`.
+
+Evaluate and report each gate explicitly:
+
+- **Architecture gate**
+  - Pass: implementation follows documented boundaries and dependency rules
+  - Warn: architecture mapping is ambiguous or stale
+  - Fail: clear violation of explicit architecture constraints
+
+- **Rules gate**
+  - Pass: implementation follows explicit project rules
+  - Warn: relevance/verification is ambiguous
+  - Fail: clear violation of explicit rule text
+
+- **Roadmap gate**
+  - Pass: work aligns with existing milestone direction (prefer `## Roadmap Linkage` from the plan when present)
+  - Warn: `.ai-factory/ROADMAP.md` missing, ambiguous mapping, or no milestone linkage for `feat`/`fix`/`perf` scope
+  - Fail (strict mode): clear roadmap contradiction after all available roadmap context is considered
+
+Normal mode behavior:
+- Architecture/rules clear violations fail verification.
+- Roadmap mismatch and missing milestone linkage are warnings unless contradiction is explicit and severe.
+
+Strict mode behavior:
+- Architecture and rules clear violations fail verification.
+- Clear roadmap mismatch fails verification.
+- Missing milestone linkage for `feat`/`fix`/`perf` remains a warning (even when `.ai-factory/ROADMAP.md` exists).
+
+Logging/reporting format:
+- Non-blocking findings: `WARN [gate-name] ...`
+- Blocking findings: `ERROR [gate-name] ...`
+
+### 3.6 Context Drift (Optional Remediation)
+
+`/aif-verify` is **read-only** for context artifacts. Do not edit or regenerate `.ai-factory/*` files here.
+
+If you detect that a context artifact is stale, missing, or ambiguous, report it as a drift finding and provide the owner-command remediation:
+
+- `DESCRIPTION.md` drift → suggest `/aif` (or note that `/aif-implement` should have updated it during implementation)
+- `ARCHITECTURE.md` drift → suggest `/aif-architecture`
+- `ROADMAP.md` drift → suggest `/aif-roadmap check` (or `/aif-roadmap <update request>`)
+- `RULES.md` drift → suggest `/aif-rules <rule text>`
+
+Ask the user a single optional question **only if** drift was detected and fixing it now would materially improve correctness:
+
+```
+AskUserQuestion: Context drift detected. Capture updates now?
+
+Options:
+1. Yes — show the exact commands to run (recommended)
+2. No — proceed without updating context
+```
+
 ---
 
 ## Step 4: Verification Report
@@ -368,6 +435,11 @@ When invoked with `--strict`:
 - **Lint must pass** — zero warnings, zero errors
 - **No TODOs/FIXMEs** in changed files
 - **No undocumented environment variables**
+- **Architecture gate must pass** — fail on clear boundary/dependency violations
+- **Rules gate must pass** — fail on clear rule violations
+- **Roadmap gate must pass** — fail on clear roadmap mismatch
+- Missing milestone linkage for `feat`/`fix`/`perf` is a warning even in strict mode
+- Do not fail strict verification solely because milestone linkage is missing
 
 Strict mode is recommended before merging to main or creating a pull request.
 

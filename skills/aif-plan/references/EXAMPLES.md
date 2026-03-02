@@ -83,6 +83,7 @@
 -> mode=full
 -> Quick reconnaissance
 -> Branch: feature/user-authentication
+-> If ROADMAP.md exists: asks about milestone linkage, user picks one (or skips)
 -> Asks about tests (Yes), logging (Verbose), docs (Yes)
 -> Creates branch
 -> Explores codebase deeply
@@ -99,6 +100,7 @@
 -> mode=full, parallel=true
 -> Quick reconnaissance
 -> Branch: feature/stripe-checkout
+-> If ROADMAP.md exists: asks about milestone linkage, user picks one (or skips)
 -> Asks about tests (No), logging (Verbose), docs (No)
 -> Creates worktree ../my-project-feature-stripe-checkout
 -> Copies context files, cd into worktree

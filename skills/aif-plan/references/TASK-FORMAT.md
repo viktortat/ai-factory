@@ -13,6 +13,11 @@ Created: [date]
 - Logging: verbose/standard/minimal
 - Docs: yes/no
 
+## Roadmap Linkage (optional)
+<!-- Only when .ai-factory/ROADMAP.md exists -->
+Milestone: "[milestone name from ROADMAP.md]"  # or "none"
+Rationale: [1 short sentence]
+
 ## Research Context (optional)
 <!-- If .ai-factory/RESEARCH.md exists, copy/paste the Active Summary here -->
 Source: .ai-factory/RESEARCH.md (Active Summary)

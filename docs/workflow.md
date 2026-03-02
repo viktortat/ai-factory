@@ -153,6 +153,27 @@ If you want exploration results to survive `/clear` and feed directly into plann
 | `/aif-fix` | Bug fixes, errors, hotfixes | No | Optional (`.ai-factory/FIX_PLAN.md`) |
 | `/aif-verify` | Post-implementation quality check | No | No (reads existing) |
 
+## Artifact Ownership and Context Gates
+
+Ownership is command-scoped to avoid conflicting writers:
+
+| Command                                   | Primary artifact ownership                                   | Notes                                                 |
+|-------------------------------------------|--------------------------------------------------------------|-------------------------------------------------------|
+| `/aif`                                    | `.ai-factory/DESCRIPTION.md`, setup `AGENTS.md`              | invokes `/aif-architecture` for architecture file     |
+| `/aif-architecture`                       | `.ai-factory/ARCHITECTURE.md`                                | may update architecture pointer in DESCRIPTION/AGENTS |
+| `/aif-roadmap`                            | `.ai-factory/ROADMAP.md`                                     | `/aif-implement` may mark completed milestones        |
+| `/aif-rules`                              | `.ai-factory/RULES.md`                                       | append/update rules only                              |
+| `/aif-plan`                               | `.ai-factory/PLAN.md`, `.ai-factory/plans/<branch>.md`       | `/aif-improve` refines existing plans                 |
+| `/aif-explore`                            | `.ai-factory/RESEARCH.md`                                    | all other artifacts are read-only in explore mode     |
+| `/aif-fix`                                | `.ai-factory/FIX_PLAN.md`, `.ai-factory/patches/*.md`        | bug-fix learning loop artifacts                       |
+| `/aif-evolve`                             | `.ai-factory/evolutions/*.md`, `.ai-factory/skill-context/*` | skill-context overrides + evolution logs (approved)   |
+| `/aif-commit` `/aif-review` `/aif-verify` | read-only context by default                                 | gate and report, no default context-file writes       |
+
+Context-gate defaults for `/aif-commit`, `/aif-review`, `/aif-verify`:
+- Check architecture, roadmap, and rules alignment as read-only context.
+- Missing optional files (`ROADMAP.md`, `RULES.md`) are `WARN`, not immediate failures.
+- In strict verification, clear architecture/rules violations and clear roadmap mismatch are blocking failures.
+
 ## Workflow Skills
 
 These skills form the development pipeline. Each one feeds into the next.
@@ -186,7 +207,7 @@ High-level project planning. Creates `.ai-factory/ROADMAP.md` — a strategic ch
 /aif-plan full --parallel Add Stripe checkout      # Parallel worktree
 ```
 
-Two modes — **fast** (no branch, saves to `.ai-factory/PLAN.md`) and **full** (creates git branch, asks about testing/logging/docs, saves to `.ai-factory/plans/<branch>.md`). Analyzes requirements, explores codebase for patterns, creates tasks with dependencies. For 5+ tasks, includes commit checkpoints. For parallel work on multiple features, use `full --parallel` to create isolated worktrees.
+Two modes — **fast** (no branch, saves to `.ai-factory/PLAN.md`) and **full** (creates git branch, asks about testing/logging/docs and optional roadmap milestone linkage when `.ai-factory/ROADMAP.md` exists, saves to `.ai-factory/plans/<branch>.md`). Analyzes requirements, explores codebase for patterns, creates tasks with dependencies. For 5+ tasks, includes commit checkpoints. For parallel work on multiple features, use `full --parallel` to create isolated worktrees.
 
 ### `/aif-improve [prompt]` — refine the plan
 
@@ -230,6 +251,16 @@ Reads past patches from `.ai-factory/patches/` to learn from previous mistakes, 
 ```
 
 Optional step after `/aif-implement`. Goes through every task in the plan and verifies the code actually implements it. Checks build, tests, lint, looks for leftover TODOs, undocumented env vars, and plan-vs-code drift. If gaps are found, it first suggests `/aif-fix <issue summary>` (recommended). If verification is clean, it suggests `/aif-security-checklist` and `/aif-review`. Use `--strict` before merging to main.
+
+Also runs read-only context gates against `.ai-factory/ARCHITECTURE.md`, `.ai-factory/ROADMAP.md` (if present), and `.ai-factory/RULES.md` (if present). In normal mode, roadmap/milestone linkage gaps are warnings; in strict mode, clear roadmap mismatch is a failure, while missing `feat`/`fix`/`perf` milestone linkage remains a warning.
+
+### `/aif-review` — code review with read-only context gates
+
+Reviews staged changes or PR diff and reports correctness/security/performance findings. Includes read-only architecture/roadmap/rules gate notes in review output (`WARN` for non-blocking inconsistencies, `ERROR` only for explicitly blocking criteria).
+
+### `/aif-commit` — conventional commit with read-only context gates
+
+Creates conventional commits from staged changes and runs read-only architecture/roadmap/rules checks before finalizing the message. By default this remains warning-first (no implicit strict mode). For `feat`/`fix`/`perf` commits, missing roadmap milestone linkage is reported as warning.
 
 ### `/aif-fix [bug description]` — fix and learn
 

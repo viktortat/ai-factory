@@ -2,7 +2,7 @@
 name: aif-commit
 description: Create conventional commit messages by analyzing staged changes. Generates semantic commit messages following the Conventional Commits specification. Use when user says "commit", "save changes", or "create commit".
 argument-hint: "[scope or context]"
-allowed-tools: Bash(git *)
+allowed-tools: Read Bash(git *) AskUserQuestion Questions
 disable-model-invocation: false
 ---
 
@@ -37,7 +37,13 @@ If any rule is violated — fix the output before presenting it to the user.
    - Run `git diff --cached` to see staged changes
    - If nothing staged, show warning and suggest staging
 
-2. **Determine Commit Type**
+2. **Run Context Gates (Read-Only)**
+   - Check `.ai-factory/ARCHITECTURE.md` and `.ai-factory/DESCRIPTION.md` (if present) to catch obvious scope/boundary drift
+   - Check `.ai-factory/RULES.md` and `.ai-factory/ROADMAP.md` (if present) to catch rule and milestone alignment issues
+   - Missing optional files (`ROADMAP.md`, `RULES.md`) are `WARN`, not blockers
+   - Never modify context artifacts from this command
+
+3. **Determine Commit Type**
    - `feat`: New feature
    - `fix`: Bug fix
    - `docs`: Documentation only
@@ -49,12 +55,12 @@ If any rule is violated — fix the output before presenting it to the user.
    - `ci`: CI configuration
    - `chore`: Maintenance tasks
 
-3. **Identify Scope**
+4. **Identify Scope**
    - From file paths (e.g., `src/auth/` → `auth`)
    - From argument if provided
    - Optional - omit if changes span multiple areas
 
-4. **Generate Message**
+5. **Generate Message**
    - Keep subject line under 72 characters
    - Use imperative mood ("add" not "added")
    - Don't capitalize first letter after type
@@ -100,16 +106,18 @@ When invoked:
 
 1. Check for staged changes
 2. Analyze the diff content
-3. Propose a commit message
-4. Ask for confirmation or modifications
-5. Execute `git commit` with the message
-6. After a successful commit, offer to push:
+3. Run read-only context gates and summarize findings as `WARN`/`ERROR`
+4. If commit type is `feat`/`fix`/`perf` and roadmap exists, check milestone linkage; if missing, warn and suggest adding linkage in commit body/footer
+5. Propose a commit message
+6. Ask for confirmation or modifications
+7. Execute `git commit` with the message
+8. After a successful commit, offer to push:
    - Show branch/ahead status: `git status -sb`
    - If the branch has no upstream, use: `git push -u origin <branch>`
    - Otherwise: `git push`
    - User choice:
-     - [ ] Push now
-     - [ ] Skip push
+      - [ ] Push now
+      - [ ] Skip push
 
 If argument provided (e.g., `/aif-commit auth`):
 - Use it as the scope
@@ -119,6 +127,8 @@ If argument provided (e.g., `/aif-commit auth`):
 
 - Never commit secrets or credentials
 - Review large diffs carefully before committing
+- `/aif-commit` has no implicit strict mode — context gates are warning-first unless user explicitly requests blocking behavior
+- Treat `.ai-factory/ARCHITECTURE.md`, `.ai-factory/ROADMAP.md`, `.ai-factory/RULES.md`, and `.ai-factory/DESCRIPTION.md` as read-only context in this command
 - If staged changes contain unrelated work (e.g., a feature + a bugfix, or changes to independent modules), suggest splitting into separate commits:
   1. Show which files/hunks belong to which commit
   2. Ask for confirmation
