@@ -252,7 +252,7 @@ Reads past patches from `.ai-factory/patches/` to learn from previous mistakes, 
 
 Optional step after `/aif-implement`. Goes through every task in the plan and verifies the code actually implements it. Checks build, tests, lint, looks for leftover TODOs, undocumented env vars, and plan-vs-code drift. If gaps are found, it first suggests `/aif-fix <issue summary>` (recommended). If verification is clean, it suggests `/aif-security-checklist` and `/aif-review`. Use `--strict` before merging to main.
 
-Also runs read-only context gates against `.ai-factory/ARCHITECTURE.md`, `.ai-factory/ROADMAP.md` (if present), and `.ai-factory/RULES.md` (if present). In normal mode, roadmap/milestone linkage gaps are warnings; in strict mode, clear roadmap mismatch and missing `feat`/`fix`/`perf` milestone linkage become failures when roadmap exists.
+Also runs read-only context gates against `.ai-factory/ARCHITECTURE.md`, `.ai-factory/ROADMAP.md` (if present), and `.ai-factory/RULES.md` (if present). In normal mode, roadmap/milestone linkage gaps are warnings; in strict mode, clear roadmap mismatch is a failure, while missing `feat`/`fix`/`perf` milestone linkage remains a warning.
 
 ### `/aif-review` — code review with read-only context gates
 

@@ -499,8 +499,7 @@ After completing evolution, suggest `/clear` or `/compact` — context is heavy 
     Merges in Step 7 (combining narrow rules into a broader one) are allowed as long
     as all prevention points are preserved in the merged rule.
 12. **Installed only** — do not evolve skills not installed in the project
-6. **Preserve structure** — don't change skill workflow, only enrich it
-7. **Ownership boundary** — this command owns `.ai-factory/evolutions/*.md` and approved skill edits; treat roadmap/rules/research/plan artifacts as read-only context unless explicitly asked
+13. **Ownership boundary** — this command owns `.ai-factory/evolutions/*.md` and `.ai-factory/skill-context/*`; treat roadmap/rules/research/plan artifacts as read-only context unless explicitly asked
 
 ## Example
 

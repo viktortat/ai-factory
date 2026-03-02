@@ -257,7 +257,7 @@ Evaluate and report each gate explicitly:
 - **Roadmap gate**
   - Pass: work aligns with existing milestone direction (prefer `## Roadmap Linkage` from the plan when present)
   - Warn: `.ai-factory/ROADMAP.md` missing, ambiguous mapping, or no milestone linkage for `feat`/`fix`/`perf` scope
-  - Fail (strict mode): clear roadmap contradiction, or missing milestone linkage for `feat`/`fix`/`perf` when roadmap exists
+  - Fail (strict mode): clear roadmap contradiction after all available roadmap context is considered
 
 Normal mode behavior:
 - Architecture/rules clear violations fail verification.
@@ -266,7 +266,7 @@ Normal mode behavior:
 Strict mode behavior:
 - Architecture and rules clear violations fail verification.
 - Clear roadmap mismatch fails verification.
-- Missing milestone linkage for `feat`/`fix`/`perf` fails when `.ai-factory/ROADMAP.md` exists.
+- Missing milestone linkage for `feat`/`fix`/`perf` remains a warning (even when `.ai-factory/ROADMAP.md` exists).
 
 Logging/reporting format:
 - Non-blocking findings: `WARN [gate-name] ...`
@@ -438,7 +438,8 @@ When invoked with `--strict`:
 - **Architecture gate must pass** — fail on clear boundary/dependency violations
 - **Rules gate must pass** — fail on clear rule violations
 - **Roadmap gate must pass** — fail on clear roadmap mismatch
-- **Milestone linkage required for `feat`/`fix`/`perf`** when `.ai-factory/ROADMAP.md` exists
+- Missing milestone linkage for `feat`/`fix`/`perf` is a warning even in strict mode
+- Do not fail strict verification solely because milestone linkage is missing
 
 Strict mode is recommended before merging to main or creating a pull request.
 

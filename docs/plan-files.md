@@ -15,13 +15,13 @@ To avoid ownership conflicts, artifact writers are command-scoped:
 
 | Artifact                                                  | Primary owner command | Notes                                                                                            |
 |-----------------------------------------------------------|-----------------------|--------------------------------------------------------------------------------------------------|
-| `.ai-factory/DESCRIPTION.md`                              | `/aif`                | `/aif-implement` and `/aif-fix` may update only when implementation/fix context actually changed |
+| `.ai-factory/DESCRIPTION.md`                              | `/aif`                | `/aif-implement` may update only when implementation context actually changed                    |
 | `.ai-factory/ARCHITECTURE.md`                             | `/aif-architecture`   | `/aif-implement` may update structure notes when implementation changes structure                |
 | `.ai-factory/ROADMAP.md`                                  | `/aif-roadmap`        | `/aif-implement` may mark completed milestones with evidence                                     |
 | `.ai-factory/RULES.md`                                    | `/aif-rules`          | convention source of truth                                                                       |
 | `.ai-factory/RESEARCH.md`                                 | `/aif-explore`        | explore-mode writable artifact                                                                   |
 | `.ai-factory/PLAN.md` and `.ai-factory/plans/<branch>.md` | `/aif-plan`           | `/aif-improve` refines existing plans                                                            |
-| `.ai-factory/FIX_PLAN.md` and `.ai-factory/patches/*.md`  | `/aif-fix`            | fix workflow artifacts                                                                           |
+| `.ai-factory/FIX_PLAN.md` and `.ai-factory/patches/*.md`  | `/aif-fix`            | fix workflow artifacts; context files (including `DESCRIPTION.md`) remain read-only by default   |
 
 Quality commands (`/aif-commit`, `/aif-review`, `/aif-verify`) treat these files as read-only context by default.
 

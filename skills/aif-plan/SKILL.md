@@ -180,7 +180,7 @@ AskUserQuestion: Before we start, a few questions:
 
 4. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
    - [ ] Link this plan to a milestone
-   - [ ] Skip — no linkage
+   - [ ] Skip — no linkage (allowed; `/aif-verify --strict` should report WARN, not fail, for missing linkage alone)
 
 5. Any specific requirements or constraints?
 ```
@@ -293,7 +293,7 @@ AskUserQuestion: Before we start:
 
 3. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
    - [ ] Link this plan to a milestone
-   - [ ] Skip — no linkage
+   - [ ] Skip — no linkage (allowed; `/aif-verify --strict` should report WARN, not fail, for missing linkage alone)
 ```
 
 **Plan file:** Always `.ai-factory/PLAN.md` (no branch, no branch-named file).
@@ -389,7 +389,7 @@ mkdir -p .ai-factory/plans  # only when saving to branch-named plan files
 
 If `.ai-factory/ROADMAP.md` exists:
 - If the user linked a milestone, write `## Roadmap Linkage` with `Milestone: "..."` and `Rationale: ...`
-- If the user skipped linkage, write `## Roadmap Linkage` with `Milestone: "none"`
+- If the user skipped linkage, write `## Roadmap Linkage` with `Milestone: "none"` and `Rationale: "Skipped by user"`
 
 If `.ai-factory/RESEARCH.md` exists:
 - Include `## Research Context` by copying only the `Active Summary` (do not paste full `Sessions`)

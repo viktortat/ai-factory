@@ -15,7 +15,7 @@ Canonical contract for AI Factory workflow commands. This file defines:
 | `aif-rules` | `.ai-factory/RULES.md` | Existing project context | None |
 | `aif-plan` | `.ai-factory/PLAN.md`, `.ai-factory/plans/<branch>.md` | `.ai-factory/DESCRIPTION.md`, `.ai-factory/ARCHITECTURE.md`, `.ai-factory/RESEARCH.md` | `aif-improve` may refine existing plan files |
 | `aif-implement` | Plan progress updates (checkboxes/task status) | `.ai-factory/RULES.md`, `.ai-factory/ARCHITECTURE.md`, `.ai-factory/DESCRIPTION.md`, patches | May update `.ai-factory/DESCRIPTION.md` and `.ai-factory/ARCHITECTURE.md` only when stack/structure changed; may update `.ai-factory/ROADMAP.md` milestone completion |
-| `aif-fix` | `.ai-factory/FIX_PLAN.md` (plan mode), `.ai-factory/patches/*.md` | `.ai-factory/DESCRIPTION.md`, existing patches | None |
+| `aif-fix` | `.ai-factory/FIX_PLAN.md` (plan mode), `.ai-factory/patches/*.md` | `.ai-factory/DESCRIPTION.md`, existing patches | None (context artifacts remain read-only by default) |
 | `aif-evolve` | `.ai-factory/evolutions/*.md`, approved skill text updates | `.ai-factory/DESCRIPTION.md`, `.ai-factory/patches/*.md` | None |
 | `aif-docs` | `README.md`, `docs/*`, `AGENTS.md` documentation section | Project/context files for factual docs | None |
 | `aif-explore` | `.ai-factory/RESEARCH.md` only | All context and codebase files for analysis | None |
@@ -67,7 +67,7 @@ Gate outputs must use:
 - Architecture clear violations: **fail**
 - Rules clear violations: **fail**
 - Roadmap clear mismatch: **fail**
-- Missing milestone linkage for `feat`/`fix`/`perf` when `.ai-factory/ROADMAP.md` exists: **fail**
+- Missing milestone linkage for `feat`/`fix`/`perf` when `.ai-factory/ROADMAP.md` exists: **warn**
 
 ### Commit and review mode
 - Context gates are read-only and non-destructive.
