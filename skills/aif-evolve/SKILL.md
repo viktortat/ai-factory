@@ -417,7 +417,10 @@ Based on:
 
 **After presenting the full report, use `AskUserQuestion` to collect decisions:**
 
-For improvements — ask: Yes apply all / Let me pick / No just save report
+For improvements — ask:
+- Yes, apply all improvements
+- Let me pick
+- No, just save report (no changes applied)
 
 **If user chooses "Let me pick":** present improvements in batches of up to 4
 per `AskUserQuestion` call (same approach as Step 4 stale rules). For each
@@ -483,11 +486,21 @@ mkdir -p .ai-factory/evolutions
 
 After saving the evolution log, update cursor state:
 
-1. If this run processed one or more patches and Step 7 completed successfully:
-   - set `last_processed_patch` to the newest processed patch filename
-   - set `updated_at` to current timestamp
-   - write `.ai-factory/evolutions/patch-cursor.json`
-2. If no new patches were processed, keep cursor unchanged.
+Definitions:
+- "New patches processed" = patch files read in Step 1.1 for this run.
+- "Improvements applied" = at least one approved improvement was written to disk
+  (skill-context updated and/or custom skill SKILL.md edited).
+
+Cursor update rules:
+
+1. If no new patches were processed, keep cursor unchanged.
+2. If new patches were processed:
+   - If improvements were applied: advance the cursor to the newest processed patch filename.
+   - If no improvements were applied (e.g., user chose "No, just save report" or skipped all):
+     - Do NOT advance cursor by default.
+     - Ask the user whether to advance cursor anyway.
+       - Recommended: keep cursor unchanged to allow reruns (LLMs may miss prevention points).
+       - If the user explicitly chooses to advance anyway, write the cursor as usual.
 3. If execution fails before changes are finalized, do not advance cursor.
 
 ```markdown

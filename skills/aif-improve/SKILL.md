@@ -114,7 +114,8 @@ Use patches as fallback context, not the default source:
 
 - If `.ai-factory/skill-context/aif-improve/SKILL.md` does not exist and `.ai-factory/patches/` exists:
   - `Glob: .ai-factory/patches/*.md`
-  - Read only the newest **10** patch files (or fewer if less exist)
+  - Sort patch filenames ascending (lexical), then select the last **10** (or fewer if less exist)
+  - Read those selected patch files only
   - Focus on reusable Prevention/Root Cause patterns that affect planning quality
 - If skill-context exists, do **not** read all patches by default.
   - Optionally inspect a small targeted subset when refining around a known recurring issue.

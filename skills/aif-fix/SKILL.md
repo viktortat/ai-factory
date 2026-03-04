@@ -66,7 +66,8 @@ If any rule is violated — fix the output before presenting it to the user.
 
 - If `.ai-factory/skill-context/aif-fix/SKILL.md` does not exist and `.ai-factory/patches/` exists:
   - Use `Glob` to find `*.md` files in `.ai-factory/patches/`
-  - Read only the newest **10** patch files (or fewer if less exist)
+  - Sort patch filenames ascending (lexical), then select the last **10** (or fewer if less exist)
+  - Read those selected patch files only
   - Prioritize recurring **Root Cause** and **Prevention** patterns
 - If skill-context exists, do **not** read all patches by default.
   - Optionally inspect a small, targeted subset of recent patches when tags/files clearly match the current bug.
