@@ -140,6 +140,17 @@ Processing rules:
 6. Full rescan procedure: delete `.ai-factory/evolutions/patch-cursor.json`, then run `/aif-evolve` again.
 7. **Do not advance cursor in Step 1.1.** Cursor is updated only after successful apply/log write in Step 7.3.
 
+**Overlap window (anti-miss guard):**
+
+LLMs may miss prevention points on a single pass. To reduce the chance of "permanently skipping" a patch when running incrementally:
+
+8. When running in incremental mode (cursor exists and referenced patch is present), ALSO read the newest 5 patches by filename (tail-5 of the sorted patch list), then de-duplicate by filename.
+9. Track these separately in your own notes:
+   - "New patches" = patches with filename `>` `last_processed_patch`
+   - "Overlap patches" = tail-5 patches
+   - "Processed patches" = union(New, Overlap)
+10. Cursor updates in Step 7.3 MUST be based on "New patches" only (never advance cursor when only overlap patches were processed).
+
 Read every patch. For each one, extract:
 - **Problem categories** (null-check, async, validation, types, API, DB, etc.)
 - **Root cause patterns** (what classes of mistake were made)
@@ -163,7 +174,7 @@ the processed patch set in this run. This registry is the primary input for Step
 If a prevention point targets 2 skills, it appears once but with both skills listed —
 and EACH skill must be checked independently in Step 5.
 
-When the run is incremental, this registry reflects new patches only. Use full rescan when you need historical backfill.
+When the run is incremental, this registry reflects the processed patch set for this run (new + overlap). Use full rescan when you need full historical backfill.
 
 **1.2: Aggregate patterns**
 

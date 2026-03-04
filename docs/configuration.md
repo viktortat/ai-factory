@@ -149,7 +149,7 @@ For full phase contracts and stop conditions, see [Reflex Loop](loop.md).
 
 - `.ai-factory/evolutions/patch-cursor.json` — last processed patch marker
 - First run (no cursor): evolve reads all patches
-- Subsequent runs: evolve reads only patches newer than the cursor
+- Subsequent runs: evolve reads patches newer than the cursor (plus a small overlap window to catch missed points)
 - To force a full rescan: delete `patch-cursor.json` and run `/aif-evolve` again
 
 ## Best Practices
