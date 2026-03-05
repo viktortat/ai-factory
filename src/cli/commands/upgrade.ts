@@ -150,7 +150,8 @@ export async function upgradeCommand(): Promise<void> {
       await fs.move(legacyCursorPath, cursorPath);
       console.log(chalk.green('✓ Moved .ai-factory/patch-cursor.json → .ai-factory/evolutions/patch-cursor.json\n'));
     } else {
-      console.log(chalk.yellow('  WARN: Both .ai-factory/patch-cursor.json and .ai-factory/evolutions/patch-cursor.json exist; keeping evolutions cursor\n'));
+      await removeFile(legacyCursorPath);
+      console.log(chalk.yellow('  WARN: Both cursor files existed; removed .ai-factory/patch-cursor.json and kept .ai-factory/evolutions/patch-cursor.json as source of truth\n'));
     }
   }
 

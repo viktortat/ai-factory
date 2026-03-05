@@ -136,20 +136,21 @@ Processing rules:
 2. If no cursor file exists → first run: read all patches.
 3. If cursor file exists and referenced patch is present → read only patches with filename `>` `last_processed_patch`.
 4. If cursor file exists but referenced patch is missing (deleted/renamed) → emit `WARN [evolve]` and do a full rescan.
-5. If historical patches older than cursor were edited/deleted, do not auto-reprocess silently. Emit `WARN [evolve]` and suggest full rescan.
-6. Full rescan procedure: delete `.ai-factory/evolutions/patch-cursor.json`, then run `/aif-evolve` again.
-7. **Do not advance cursor in Step 1.1.** Cursor is updated only after successful apply/log write in Step 7.3.
+5. Historical edits/deletes for patches older than cursor are not reliably detectable without a saved baseline (snapshot/hash manifest). Do NOT emit this warning by default.
+6. Emit `WARN [evolve]` for historical drift only when a reliable baseline exists and drift is actually detected.
+7. Full rescan procedure: delete `.ai-factory/evolutions/patch-cursor.json`, then run `/aif-evolve` again.
+8. **Do not advance cursor in Step 1.1.** Cursor is updated only after successful apply/log write in Step 7.3.
 
 **Overlap window (anti-miss guard):**
 
 LLMs may miss prevention points on a single pass. To reduce the chance of "permanently skipping" a patch when running incrementally:
 
-8. When running in incremental mode (cursor exists and referenced patch is present), ALSO read the newest 5 patches by filename (tail-5 of the sorted patch list), then de-duplicate by filename.
-9. Track these separately in your own notes:
+9. When running in incremental mode (cursor exists and referenced patch is present), ALSO read the newest 5 patches by filename (tail-5 of the sorted patch list), then de-duplicate by filename.
+10. Track these separately in your own notes:
    - "New patches" = patches with filename `>` `last_processed_patch`
    - "Overlap patches" = tail-5 patches
    - "Processed patches" = union(New, Overlap)
-10. Cursor updates in Step 7.3 MUST be based on "New patches" only (never advance cursor when only overlap patches were processed).
+11. Cursor updates in Step 7.3 MUST be based on "New patches" only (never advance cursor when only overlap patches were processed).
 
 Read every patch. For each one, extract:
 - **Problem categories** (null-check, async, validation, types, API, DB, etc.)
@@ -495,29 +496,26 @@ Create `.ai-factory/evolutions/YYYY-MM-DD-HH.mm.md`:
 mkdir -p .ai-factory/evolutions
 ```
 
- After saving the evolution log, update cursor state:
- 
- Definitions:
- - "New patches processed" = patches with filename `>` `last_processed_patch`.
-   - If no cursor exists (first run): "New patches" is the full patch list.
-   - Overlap patches do NOT count as "New patches".
- - "Improvements applied" = at least one approved improvement was written to disk
-   (skill-context updated and/or custom skill SKILL.md edited).
+After saving the evolution log, update cursor state:
+
+Definitions:
+- "New patches processed" = patches with filename `>` `last_processed_patch`.
+  - If no cursor exists (first run): "New patches" is the full patch list.
+  - Overlap patches do NOT count as "New patches".
+- "Improvements applied" = at least one approved improvement was written to disk
+  (skill-context updated and/or custom skill SKILL.md edited).
 
 Cursor update rules:
 
- 1. If no new patches were processed, keep cursor unchanged.
- 2. If new patches were processed:
-    - If improvements were applied: advance the cursor to the newest processed patch filename.
+1. If no new patches were processed, keep cursor unchanged.
+2. If new patches were processed:
+   - If improvements were applied: advance the cursor to the newest "New patch" filename.
    - If no improvements were applied (e.g., user chose "No, just save report" or skipped all):
      - Do NOT advance cursor by default.
      - Ask the user whether to advance cursor anyway.
        - Recommended: keep cursor unchanged to allow reruns (LLMs may miss prevention points).
        - If the user explicitly chooses to advance anyway, write the cursor as usual.
-  3. If execution fails before changes are finalized, do not advance cursor.
-
- **Important:** When overlap patches are enabled (Step 1.1), cursor advancement MUST be based on
- the newest "New patch" filename (never based on overlap-only processing).
+3. If execution fails before changes are finalized, do not advance cursor.
 
 ```markdown
 # Evolution: YYYY-MM-DD HH:mm
