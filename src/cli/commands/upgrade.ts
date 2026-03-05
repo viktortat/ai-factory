@@ -121,9 +121,13 @@ export async function upgradeCommand(): Promise<void> {
   }
 
   // Step 1: Migrate legacy plan directories to .ai-factory/plans/
+  // Also ensure newer v2 working directories exist.
+  const aiFactoryDir = path.join(projectDir, '.ai-factory');
   const featuresDir = path.join(projectDir, '.ai-factory', 'features');
   const changesDir = path.join(projectDir, '.ai-factory', 'changes');
   const plansDir = path.join(projectDir, '.ai-factory', 'plans');
+  const evolutionsDir = path.join(aiFactoryDir, 'evolutions');
+  const skillContextDir = path.join(aiFactoryDir, 'skill-context');
 
   if (await fileExists(changesDir) && !(await fileExists(plansDir))) {
     await fs.move(changesDir, plansDir);
@@ -133,6 +137,21 @@ export async function upgradeCommand(): Promise<void> {
   if (await fileExists(featuresDir) && !(await fileExists(plansDir))) {
     await fs.move(featuresDir, plansDir);
     console.log(chalk.green('✓ Renamed .ai-factory/features/ → .ai-factory/plans/\n'));
+  }
+
+  // Newer v2 structure used by /aif-evolve for incremental patch processing.
+  await fs.ensureDir(evolutionsDir);
+  await fs.ensureDir(skillContextDir);
+
+  const legacyCursorPath = path.join(aiFactoryDir, 'patch-cursor.json');
+  const cursorPath = path.join(evolutionsDir, 'patch-cursor.json');
+  if (await fileExists(legacyCursorPath)) {
+    if (!(await fileExists(cursorPath))) {
+      await fs.move(legacyCursorPath, cursorPath);
+      console.log(chalk.green('✓ Moved .ai-factory/patch-cursor.json → .ai-factory/evolutions/patch-cursor.json\n'));
+    } else {
+      console.log(chalk.yellow('  WARN: Both .ai-factory/patch-cursor.json and .ai-factory/evolutions/patch-cursor.json exist; keeping evolutions cursor\n'));
+    }
   }
 
   const availableSkills = await getAvailableSkills();

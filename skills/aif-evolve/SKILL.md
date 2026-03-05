@@ -495,24 +495,29 @@ Create `.ai-factory/evolutions/YYYY-MM-DD-HH.mm.md`:
 mkdir -p .ai-factory/evolutions
 ```
 
-After saving the evolution log, update cursor state:
-
-Definitions:
-- "New patches processed" = patch files read in Step 1.1 for this run.
-- "Improvements applied" = at least one approved improvement was written to disk
-  (skill-context updated and/or custom skill SKILL.md edited).
+ After saving the evolution log, update cursor state:
+ 
+ Definitions:
+ - "New patches processed" = patches with filename `>` `last_processed_patch`.
+   - If no cursor exists (first run): "New patches" is the full patch list.
+   - Overlap patches do NOT count as "New patches".
+ - "Improvements applied" = at least one approved improvement was written to disk
+   (skill-context updated and/or custom skill SKILL.md edited).
 
 Cursor update rules:
 
-1. If no new patches were processed, keep cursor unchanged.
-2. If new patches were processed:
-   - If improvements were applied: advance the cursor to the newest processed patch filename.
+ 1. If no new patches were processed, keep cursor unchanged.
+ 2. If new patches were processed:
+    - If improvements were applied: advance the cursor to the newest processed patch filename.
    - If no improvements were applied (e.g., user chose "No, just save report" or skipped all):
      - Do NOT advance cursor by default.
      - Ask the user whether to advance cursor anyway.
        - Recommended: keep cursor unchanged to allow reruns (LLMs may miss prevention points).
        - If the user explicitly chooses to advance anyway, write the cursor as usual.
-3. If execution fails before changes are finalized, do not advance cursor.
+  3. If execution fails before changes are finalized, do not advance cursor.
+
+ **Important:** When overlap patches are enabled (Step 1.1), cursor advancement MUST be based on
+ the newest "New patch" filename (never based on overlap-only processing).
 
 ```markdown
 # Evolution: YYYY-MM-DD HH:mm
