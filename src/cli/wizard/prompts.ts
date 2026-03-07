@@ -1,6 +1,8 @@
 import inquirer from 'inquirer';
+import chalk from 'chalk';
 import { getAvailableSkills } from '../../core/installer.js';
 import { getAgentConfig, getAgentChoices } from '../../core/agents.js';
+import { formatSkillChoiceName } from './skill-hints.js';
 
 export interface AgentWizardSelection {
   id: string;
@@ -43,7 +45,8 @@ export async function runWizard(defaultAgentIds: string[] = []): Promise<WizardA
       name: 'selectedSkills',
       message: 'Base skills to install:',
       choices: availableSkills.map(skill => ({
-        name: skill,
+        name: formatSkillChoiceName(skill, hint => chalk.gray(hint)),
+        short: skill,
         value: skill,
         checked: true, // All skills selected by default
       })),
