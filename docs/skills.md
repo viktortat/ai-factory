@@ -17,6 +17,7 @@ Explore ideas, constraints, and trade-offs before planning:
 - Reads project context from `.ai-factory/DESCRIPTION.md`, `ARCHITECTURE.md`, `RULES.md`, `.ai-factory/RESEARCH.md`, and active plan files when present
 - Does **not** implement code in this mode; when direction is clear, move to `/aif-plan`
 - Can optionally persist exploration context to `.ai-factory/RESEARCH.md` so you can `/clear` and still feed results into `/aif-plan`
+- Best when the problem is still fuzzy: requirements unclear, trade-offs unresolved, or you want to inspect the codebase before choosing a direction
 
 ### `/aif-plan [fast|full] <description>`
 Plans implementation for a feature or task:
@@ -213,6 +214,21 @@ Reliability gate that prevents guessing:
 - Only provides a final answer if confidence is **100/100** based on evidence (repo files, command output, provided docs)
 - If confidence is < 100, returns **INSUFFICIENT INFORMATION** with a concrete checklist of what’s needed to reach 100
 - Forces verification for changeable facts (“latest”, “current”, version-specific behavior)
+- Best when the task is already clear but the answer must be strictly verified: high-stakes questions, version-sensitive facts, or any prompt that says “no assumptions”
+
+#### `/aif-explore` vs `/aif-grounded`
+
+| Skill | Use it for | Output style | If things are unclear |
+|-------|------------|--------------|------------------------|
+| `/aif-explore` | discovery, requirement shaping, trade-off discussion, repo investigation before planning | open-ended thinking partner | keeps exploring, reframing, and comparing options |
+| `/aif-grounded` | evidence-only answers, strict verification, high-stakes or changeable facts | confidence-gated answer with explicit evidence | stops and returns `INSUFFICIENT INFORMATION` |
+
+Typical sequence when both are useful:
+1. `/aif-explore` — figure out what problem you are really solving.
+2. `/aif-grounded` — verify the important claims or current-state facts.
+3. `/aif-plan` — turn the clarified, verified direction into executable tasks.
+
+For the workflow view of where these fit, see [Development Workflow](workflow.md).
 
 ### `/aif-architecture [clean|ddd|microservices|monolith|layers]`
 Generates architecture guidelines tailored to your project:

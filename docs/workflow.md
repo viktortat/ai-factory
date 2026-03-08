@@ -50,7 +50,9 @@ The repeatable development loop. Each skill feeds into the next, sharing context
 
 Optional discovery step: use `/aif-explore` before planning to investigate ideas, compare options, and clarify requirements.
 
-If you want exploration results to survive `/clear` and feed directly into planning, ask it to save to `.ai-factory/RESEARCH.md`.
+Reliability gate: use `/aif-grounded` when the main problem is not discovery but certainty - high-stakes answers, changeable facts, version-sensitive behavior, or any request where the model must refuse to guess.
+
+If you want exploration results to survive `/clear` and feed directly into planning, ask `/aif-explore` to save them to `.ai-factory/RESEARCH.md`.
 
 ![workflow](https://github.com/lee-to/ai-factory/raw/2.x/art/workflow.png)
 
@@ -58,6 +60,18 @@ If you want exploration results to survive `/clear` and feed directly into plann
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       DEVELOPMENT WORKFLOW                              │
 └─────────────────────────────────────────────────────────────────────────┘
+
+   Need to think first?                         Need certainty first?
+          │                                             │
+          ▼                                             ▼
+   ┌───────────────┐                            ┌────────────────┐
+   │ /aif-explore  │                            │ /aif-grounded  │
+   │ clarify scope │                            │ verify facts   │
+   │ compare paths │                            │ reject guesses │
+   └───────┬───────┘                            └────────┬───────┘
+           │                                             │
+           └──────────────────────┬──────────────────────┘
+                                  ▼
 
                ┌──────────────────────────┐                         ┌──────────────┐
                │                          │                         │              │
@@ -144,6 +158,7 @@ If you want exploration results to survive `/clear` and feed directly into plann
 | Command | Use Case | Creates Branch? | Creates Plan? |
 |---------|----------|-----------------|---------------|
 | `/aif-explore` | Discovery, option comparison, and requirements clarification before planning | No | No (optional `.ai-factory/RESEARCH.md` on request) |
+| `/aif-grounded` | Evidence-only answers, strict verification, and high-stakes questions where guessing is unacceptable | No | No |
 | `/aif-roadmap` | Strategic planning, milestones, long-term vision | No | `.ai-factory/ROADMAP.md` |
 | `/aif-plan fast` | Small tasks, quick fixes, experiments | No | `.ai-factory/PLAN.md` |
 | `/aif-plan full` | Full features, stories, epics | Yes | `.ai-factory/plans/<branch>.md` |
@@ -187,6 +202,15 @@ These skills form the development pipeline. Each one feeds into the next.
 ```
 
 Thinking-partner mode for exploring ideas, constraints, and trade-offs without implementing code. Reads `.ai-factory/DESCRIPTION.md`, `ARCHITECTURE.md`, `RULES.md`, `.ai-factory/RESEARCH.md`, and active plan files for context. If you want the context to persist across sessions (or after `/clear`), save it to `.ai-factory/RESEARCH.md`. When direction is clear, transition to `/aif-plan fast` or `/aif-plan full`.
+
+### `/aif-grounded [question or task]` — certainty before action
+
+```
+/aif-grounded Does this repo already support feature flags?
+/aif-grounded Which command should I use if I need a fully verified answer?
+```
+
+Reliability-gate mode for evidence-backed answers. Use it when the task is already clear but the answer must be strictly verified: high-stakes requests, version-sensitive facts, current-state questions, or any prompt that says "no assumptions". Unlike `/aif-explore`, it is not for brainstorming or open-ended trade-off mapping; it either answers from evidence with `Confidence: 100/100` or stops with `INSUFFICIENT INFORMATION` and tells you what is missing.
 
 ### `/aif-roadmap [check | vision]` — strategic planning
 

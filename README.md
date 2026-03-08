@@ -97,6 +97,9 @@ ai-factory upgrade
 # Explore options and requirements before planning (optional)
 /aif-explore Add user authentication with OAuth
 
+# Need a strictly verified answer before changing anything?
+/aif-grounded Does this repo already support OAuth providers?
+
 # Plan a feature — creates branch, analyzes codebase, builds step-by-step plan
 /aif-plan Add user authentication with OAuth
 
@@ -139,9 +142,9 @@ AI Factory can generate and maintain your project docs with a single command:
 | Guide | Description |
 |-------|-------------|
 | [Getting Started](docs/getting-started.md) | What is AI Factory, supported agents, CLI commands |
-| [Development Workflow](docs/workflow.md) | Workflow diagram, when to use what, spec-driven approach |
+| [Development Workflow](docs/workflow.md) | Workflow diagram, when to use `explore` vs `grounded`, spec-driven approach |
 | [Reflex Loop](docs/loop.md) | Iterative generate → evaluate → critique → refine workflow |
-| [Core Skills](docs/skills.md) | All slash commands — explore, plan, fix, implement, evolve, docs, and more |
+| [Core Skills](docs/skills.md) | All slash commands — explore, grounded, plan, fix, implement, evolve, docs, and more |
 | [Skill Evolution](docs/evolve.md) | How /aif-fix patches feed into /aif-evolve to generate smarter skill rules |
 | [Plan Files](docs/plan-files.md) | Plan files, self-improvement patches, skill acquisition |
 | [Security](docs/security.md) | Two-level security scanning for external skills |
