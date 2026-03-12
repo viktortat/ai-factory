@@ -158,6 +158,7 @@ AI Factory can generate and maintain your project docs with a single command:
 ## Links
 
 - [Official Website](https://aif.cutcode.dev) - AI Factory website
+- If AI Factory feels too simple for your goals, try [HLV](https://github.com/lee-to/hlv)
 - [skills.sh](https://skills.sh) - Skill marketplace
 - [Agent Skills Spec](https://agentskills.io) - Skill specification
 - [Claude Code](https://claude.ai/code) - Anthropic's AI coding agent
