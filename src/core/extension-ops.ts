@@ -236,8 +236,9 @@ async function rollbackFailedExtensionInstall(
     await ensureDir(path.dirname(context.extensionDir));
     await copyDirectory(context.backupDir, context.extensionDir);
 
-    if (context.oldManifest) {
-      await installExtensionAssetsForAllAgents(projectDir, agents, context.extensionDir, context.oldManifest);
+    const restoredManifest = context.oldManifest ?? await loadExtensionManifest(context.extensionDir);
+    if (restoredManifest) {
+      await installExtensionAssetsForAllAgents(projectDir, agents, context.extensionDir, restoredManifest);
     }
     return;
   }
@@ -537,7 +538,7 @@ async function checkExtensionNeedsRefresh(
     return {
       shouldRefresh: false,
       latestVersion: null,
-      reason: 'lookup-failed',
+      reason: resolution.failureReason === 'rate-limited' ? 'rate-limited' : 'lookup-failed',
     };
   }
 
@@ -609,6 +610,13 @@ export async function refreshExtensions(
       const resolved = await resolveExtension(projectDir, source);
 
       try {
+        if (resolved.manifest.name !== extName) {
+          throw new Error(
+            `Extension identity mismatch: expected "${extName}" but source returned "${resolved.manifest.name}". ` +
+            `The extension may have been renamed or the source URL may be incorrect.`,
+          );
+        }
+
         const { manifest } = await commitResolvedExtension(projectDir, {
           config,
           source,

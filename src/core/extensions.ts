@@ -386,9 +386,70 @@ export function compareExtensionVersions(left: string, right: string): number {
     return 0;
   }
 
-  return parsedLeft.prerelease && parsedRight.prerelease
-    ? parsedLeft.prerelease.localeCompare(parsedRight.prerelease)
-    : 0;
+  if (parsedLeft.prerelease && parsedRight.prerelease) {
+    return comparePrereleaseStrings(parsedLeft.prerelease, parsedRight.prerelease);
+  }
+
+  return 0;
+}
+
+function comparePrereleaseStrings(left: string, right: string): number {
+  const leftParts = splitPrereleaseParts(left);
+  const rightParts = splitPrereleaseParts(right);
+
+  const maxLen = Math.max(leftParts.length, rightParts.length);
+
+  for (let index = 0; index < maxLen; index++) {
+    const leftPart = leftParts[index];
+    const rightPart = rightParts[index];
+
+    if (leftPart === undefined) {
+      return -1;
+    }
+
+    if (rightPart === undefined) {
+      return 1;
+    }
+
+    const leftIsNum = typeof leftPart === 'number';
+    const rightIsNum = typeof rightPart === 'number';
+
+    if (leftIsNum && rightIsNum) {
+      if (leftPart > rightPart) {
+        return 1;
+      }
+
+      if (leftPart < rightPart) {
+        return -1;
+      }
+
+      continue;
+    }
+
+    if (leftIsNum) {
+      return 1;
+    }
+
+    if (rightIsNum) {
+      return -1;
+    }
+
+    const cmp = String(leftPart).localeCompare(String(rightPart));
+
+    if (cmp !== 0) {
+      return cmp;
+    }
+  }
+
+  return 0;
+}
+
+function splitPrereleaseParts(prerelease: string): Array<string | number> {
+  return prerelease.split('.').map((part) => {
+    const num = Number(part);
+
+    return Number.isInteger(num) ? num : part;
+  });
 }
 
 export function parseGitSource(source: string): ParsedGitSource {
@@ -430,11 +491,16 @@ export function parseGitSource(source: string): ParsedGitSource {
   };
 }
 
-export async function fetchGitHubExtensionManifest(source: string): Promise<ExtensionManifest | null> {
+export interface GitHubManifestResult {
+  manifest: ExtensionManifest | null;
+  rateLimited: boolean;
+}
+
+export async function fetchGitHubExtensionManifest(source: string): Promise<GitHubManifestResult> {
   const gitSource = parseGitSource(source);
 
   if (!gitSource.isGitHub || !gitSource.owner || !gitSource.repo) {
-    return null;
+    return { manifest: null, rateLimited: false };
   }
 
   const token = process.env.GITHUB_TOKEN?.trim();
@@ -470,7 +536,7 @@ export async function fetchGitHubExtensionManifest(source: string): Promise<Exte
         ref: gitSource.ref,
         hint: token ? 'retry later or investigate token scope' : 'set GITHUB_TOKEN with repo read access',
       });
-      return null;
+      return { manifest: null, rateLimited: true };
     }
 
     if (!response.ok) {
@@ -481,7 +547,7 @@ export async function fetchGitHubExtensionManifest(source: string): Promise<Exte
         ref: gitSource.ref,
         status: response.status,
       });
-      return null;
+      return { manifest: null, rateLimited: false };
     }
 
     const payload = await response.json() as GitHubContentsResponse;
@@ -492,7 +558,7 @@ export async function fetchGitHubExtensionManifest(source: string): Promise<Exte
         repo: gitSource.repo,
         ref: gitSource.ref,
       });
-      return null;
+      return { manifest: null, rateLimited: false };
     }
 
     const manifest = JSON.parse(Buffer.from(payload.content.replace(/\n/g, ''), 'base64').toString('utf8')) as ExtensionManifest;
@@ -506,7 +572,7 @@ export async function fetchGitHubExtensionManifest(source: string): Promise<Exte
       latestVersion: manifest.version,
     });
 
-    return manifest;
+    return { manifest, rateLimited: false };
   } catch (error) {
     logExtension('warn', 'GitHub API manifest lookup failed', {
       sourceType: 'github',
@@ -515,7 +581,7 @@ export async function fetchGitHubExtensionManifest(source: string): Promise<Exte
       ref: gitSource.ref,
       failureReason: (error as Error).message,
     });
-    return null;
+    return { manifest: null, rateLimited: false };
   }
 }
 
@@ -578,14 +644,30 @@ export async function resolveExtensionVersion(
 
     if (sourceType === 'github') {
       const gitSource = parseGitSource(source);
-      const manifest = await fetchGitHubExtensionManifest(source);
-      if (manifest) {
+      const result = await fetchGitHubExtensionManifest(source);
+
+      if (result.rateLimited) {
+        return {
+          status: 'failed',
+          sourceType,
+          source,
+          failureReason: 'rate-limited',
+          metadata: {
+            host: gitSource.host ?? undefined,
+            owner: gitSource.owner ?? undefined,
+            repo: gitSource.repo ?? undefined,
+            ref: gitSource.ref ?? undefined,
+          },
+        };
+      }
+
+      if (result.manifest) {
         return {
           status: 'resolved',
           sourceType,
           source,
-          latestVersion: manifest.version,
-          manifest,
+          latestVersion: result.manifest.version,
+          manifest: result.manifest,
           metadata: {
             host: gitSource.host ?? undefined,
             owner: gitSource.owner ?? undefined,
