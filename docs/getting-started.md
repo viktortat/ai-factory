@@ -33,6 +33,8 @@ AI Factory works with any AI coding agent. During `ai-factory init`, you choose 
 | Qwen Code | `.qwen/` | `.qwen/skills/` |
 | Universal / Other | `.agents/` | `.agents/skills/` |
 
+When Claude Code is selected, AI Factory also installs bundled Claude subagents into `.claude/agents/` and tracks them in `.ai-factory.json`. This is Claude-only and is documented in [Subagents](subagents.md).
+
 MCP server configuration is supported for Claude Code, Cursor, GitHub Copilot, Roo Code, Kilo Code, OpenCode, and Qwen Code. Other agents get skills installed with correct paths but without MCP auto-configuration.
 
 ## Your First Project
@@ -95,6 +97,7 @@ For v1 -> v2 migration, run `ai-factory upgrade` to rename old skills to the new
 `ai-factory update` now:
 - Checks for extension updates from their sources (npm, GitHub, etc.) before updating base skills
 - Prints per-agent status buckets for base skills (`changed`, `unchanged`, `skipped`, `removed`)
+- For Claude Code, also refreshes managed `.claude/agents/` subagents and prints a separate `Subagents` status block
 - Skills newly available in the package but not previously installed are shown as `skipped` (not auto-installed)
 
 ## Next Steps

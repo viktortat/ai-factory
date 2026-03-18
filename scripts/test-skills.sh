@@ -212,7 +212,85 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Part 4: Internal security self-scan
+# Part 4: Subagent integrity checks
+# ─────────────────────────────────────────────
+echo -e "\n${BOLD}=== Subagent integrity checks ===${NC}\n"
+
+set +e
+SUBAGENT_LINT_OUTPUT=$(ROOT_DIR="$ROOT_DIR" node --input-type=module <<'EOF' 2>&1
+import fs from 'fs';
+import path from 'path';
+
+const root = process.env.ROOT_DIR;
+const subagentsDir = path.join(root, 'subagents');
+const docsPath = path.join(root, 'docs', 'subagents.md');
+const refsPath = path.join(root, '.references', 'CLAUDE-SUBAGENTS.md');
+
+const files = fs.readdirSync(subagentsDir).filter(file => file.endsWith('.md')).sort();
+const docsContent = fs.readFileSync(docsPath, 'utf8');
+const refsContent = fs.readFileSync(refsPath, 'utf8');
+const errors = [];
+
+function getFrontmatter(content, file) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) {
+    errors.push(`${file}: missing frontmatter`);
+    return '';
+  }
+  return match[1];
+}
+
+function getField(frontmatter, key) {
+  const match = frontmatter.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
+  return match ? match[1].trim() : null;
+}
+
+for (const file of files) {
+  const content = fs.readFileSync(path.join(subagentsDir, file), 'utf8');
+  const frontmatter = getFrontmatter(content, file);
+  const expectedName = path.basename(file, '.md');
+  const name = getField(frontmatter, 'name');
+  const tools = getField(frontmatter, 'tools') ?? '';
+  const background = getField(frontmatter, 'background') === 'true';
+  const hasWriterTools = /\bWrite\b|\bEdit\b/.test(tools);
+
+  if (name !== expectedName) {
+    errors.push(`${file}: frontmatter name "${name}" does not match filename "${expectedName}"`);
+  }
+
+  if (background && hasWriterTools) {
+    errors.push(`${file}: background agents must be read-only`);
+  }
+
+  if (docsContent.includes(`\`${expectedName}\``) === false) {
+    errors.push(`${file}: missing from docs/subagents.md inventory`);
+  }
+
+  if (refsContent.includes(`\`${expectedName}\``) === false) {
+    errors.push(`${file}: missing from .references/CLAUDE-SUBAGENTS.md inventory`);
+  }
+}
+
+if (errors.length > 0) {
+  for (const error of errors) {
+    console.error(error);
+  }
+  process.exit(1);
+}
+EOF
+)
+SUBAGENT_LINT_EXIT=$?
+set -e
+
+if [[ $SUBAGENT_LINT_EXIT -eq 0 ]]; then
+    pass "subagent inventory and frontmatter integrity"
+else
+    fail "subagent inventory and frontmatter integrity"
+    echo "$SUBAGENT_LINT_OUTPUT" | sed 's/^/      /'
+fi
+
+# ─────────────────────────────────────────────
+# Part 5: Internal security self-scan
 # ─────────────────────────────────────────────
 echo -e "\n${BOLD}=== Internal security self-scan ===${NC}\n"
 
@@ -233,7 +311,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Part 5: Update command smoke tests
+# Part 6: Update command smoke tests
 # ─────────────────────────────────────────────
 echo -e "\n${BOLD}=== Update command smoke tests ===${NC}\n"
 
@@ -247,6 +325,23 @@ if [[ $UPDATE_SMOKE_EXIT -eq 0 ]]; then
 else
     fail "update smoke tests"
     echo "$UPDATE_SMOKE_OUTPUT" | sed 's/^/      /'
+fi
+
+# ─────────────────────────────────────────────
+# Part 7: Init command smoke tests
+# ─────────────────────────────────────────────
+echo -e "\n${BOLD}=== Init command smoke tests ===${NC}\n"
+
+set +e
+INIT_SMOKE_OUTPUT=$(bash "$ROOT_DIR/scripts/test-init.sh" 2>&1)
+INIT_SMOKE_EXIT=$?
+set -e
+
+if [[ $INIT_SMOKE_EXIT -eq 0 ]]; then
+    pass "init smoke tests"
+else
+    fail "init smoke tests"
+    echo "$INIT_SMOKE_OUTPUT" | sed 's/^/      /'
 fi
 
 # ─────────────────────────────────────────────

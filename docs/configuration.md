@@ -6,12 +6,32 @@
 
 ```json
 {
-  "version": "2.2.0",
+  "version": "2.8.0",
   "agents": [
     {
       "id": "claude",
       "skillsDir": ".claude/skills",
+      "subagentsDir": ".claude/agents",
       "installedSkills": ["aif", "aif-plan", "aif-improve", "aif-implement", "aif-commit", "aif-build-automation"],
+      "installedSubagents": [
+        "best-practices-sidecar.md",
+        "commit-preparer.md",
+        "docs-auditor.md",
+        "implementer.md",
+        "implementer-isolation.md",
+        "loop-critic.md",
+        "loop-evaluator.md",
+        "loop-invariant-prep.md",
+        "loop-orchestrator.md",
+        "loop-perf-prep.md",
+        "loop-planner.md",
+        "loop-producer.md",
+        "loop-refiner.md",
+        "loop-test-prep.md",
+        "plan-polisher.md",
+        "review-sidecar.md",
+        "security-sidecar.md"
+      ],
       "mcp": {
         "github": true,
         "postgres": false,
@@ -43,7 +63,7 @@
 }
 ```
 
-The `agents` array can include any supported agent IDs: `claude`, `cursor`, `windsurf`, `roocode`, `kilocode`, `antigravity`, `opencode`, `warp`, `zencoder`, `codex`, `copilot`, `gemini`, `junie`, or `universal`. Each agent keeps its own `skillsDir`, installed skills list, and MCP preferences.
+The `agents` array can include any supported agent IDs: `claude`, `cursor`, `windsurf`, `roocode`, `kilocode`, `antigravity`, `opencode`, `warp`, `zencoder`, `codex`, `copilot`, `gemini`, `junie`, or `universal`. Each agent keeps its own `skillsDir`, installed skills list, and MCP preferences. Claude Code agents also persist `subagentsDir` and `installedSubagents`, so `ai-factory update` can refresh `.claude/agents/` alongside skills. AI Factory additionally stores internal `managedSkills` and `managedSubagents` hash maps in `.ai-factory.json`; they are omitted from the example above for brevity.
 
 The optional `extensions` array tracks installed extensions by name, original source, and version. `ai-factory update` now refreshes these extensions from their saved sources before base-skill updates, and `ai-factory extension update [name] --force` refreshes them without running the full base-skill update flow.
 
@@ -97,6 +117,24 @@ After initialization (example for Claude Code — other agents use their own dir
 ```
 your-project/
 ├── .claude/                   # Agent config dir (varies: .cursor/, .codex/, .ai/, etc.)
+│   ├── agents/
+│   │   ├── best-practices-sidecar.md
+│   │   ├── commit-preparer.md
+│   │   ├── docs-auditor.md
+│   │   ├── implementer.md
+│   │   ├── implementer-isolation.md
+│   │   ├── loop-critic.md
+│   │   ├── loop-evaluator.md
+│   │   ├── loop-invariant-prep.md
+│   │   ├── loop-orchestrator.md
+│   │   ├── loop-perf-prep.md
+│   │   ├── loop-planner.md
+│   │   ├── loop-producer.md
+│   │   ├── loop-refiner.md
+│   │   ├── loop-test-prep.md
+│   │   ├── plan-polisher.md
+│   │   ├── review-sidecar.md
+│   │   └── security-sidecar.md
 │   ├── skills/
 │   │   ├── aif/
 │   │   ├── aif-plan/

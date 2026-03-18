@@ -1,4 +1,4 @@
-[← Development Workflow](workflow.md) · [Back to README](../README.md) · [Core Skills →](skills.md)
+[← Development Workflow](workflow.md) · [Back to README](../README.md) · [Subagents →](subagents.md)
 
 # Reflex Loop
 
@@ -323,5 +323,6 @@ The loop uses a phase model with targeted parallelism:
 ## See Also
 
 - [Development Workflow](workflow.md) - where `/aif-loop` fits in the overall process
+- [Subagents](subagents.md) - Claude-only loop roles used to split planning, generation, and evaluation
 - [Core Skills](skills.md) - full command reference including `/aif-loop`
 - [Configuration](configuration.md) - `.ai-factory/` storage layout

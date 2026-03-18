@@ -14,7 +14,7 @@ export interface McpConfig {
   playwright: boolean;
 }
 
-export interface ManagedSkillState {
+export interface ManagedArtifactState {
   sourceHash: string;
   installedHash: string;
 }
@@ -23,7 +23,10 @@ export interface AgentInstallation {
   id: string;
   skillsDir: string;
   installedSkills: string[];
-  managedSkills?: Record<string, ManagedSkillState>;
+  managedSkills?: Record<string, ManagedArtifactState>;
+  subagentsDir?: string;
+  installedSubagents?: string[];
+  managedSubagents?: Record<string, ManagedArtifactState>;
   mcp: McpConfig;
 }
 
@@ -72,16 +75,19 @@ function createAgentInstallation(agentId: string, legacy?: LegacyAiFactoryConfig
     id: agentId,
     installedSkills: legacy?.installedSkills ?? [],
     managedSkills: {},
+    subagentsDir: agent.subagentsDir,
+    installedSubagents: [],
+    managedSubagents: {},
     mcp: normalizeMcp(legacy?.mcp),
   };
 }
 
-function normalizeManagedSkills(raw: unknown): Record<string, ManagedSkillState> {
+function normalizeManagedArtifacts(raw: unknown): Record<string, ManagedArtifactState> {
   if (!raw || typeof raw !== 'object') {
     return {};
   }
 
-  const result: Record<string, ManagedSkillState> = {};
+  const result: Record<string, ManagedArtifactState> = {};
 
   for (const [skillName, state] of Object.entries(raw as Record<string, unknown>)) {
     if (!skillName || typeof state !== 'object' || !state) {
@@ -113,7 +119,10 @@ export async function loadConfig(projectDir: string): Promise<AiFactoryConfig | 
         id: agent.id,
         skillsDir: agent.skillsDir || agentConfig.skillsDir,
         installedSkills: Array.isArray(agent.installedSkills) ? agent.installedSkills : [],
-        managedSkills: normalizeManagedSkills((agent as { managedSkills?: unknown }).managedSkills),
+        managedSkills: normalizeManagedArtifacts((agent as { managedSkills?: unknown }).managedSkills),
+        subagentsDir: agent.subagentsDir || agentConfig.subagentsDir,
+        installedSubagents: Array.isArray(agent.installedSubagents) ? agent.installedSubagents : [],
+        managedSubagents: normalizeManagedArtifacts((agent as { managedSubagents?: unknown }).managedSubagents),
         mcp: normalizeMcp(agent.mcp),
       };
     });

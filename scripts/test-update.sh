@@ -179,3 +179,61 @@ assert_not_exists "$AG_PROJECT_DIR/.agent/skills/aif-docs/stale.txt" "stale file
 assert_not_exists "$AG_PROJECT_DIR/.agent/skills/aif-docs/references/stale.md" "stale reference in .agent/skills/<skill> must be cleaned on force update"
 
 echo "antigravity force smoke tests passed"
+
+# -------------------------------------------------------------------
+# Claude subagents smoke: update should install bundled subagents,
+# persist subagent state in config, and heal local drift.
+# -------------------------------------------------------------------
+
+CLAUDE_PROJECT_DIR="$TMPDIR/update-smoke-claude"
+mkdir -p "$CLAUDE_PROJECT_DIR"
+
+cat > "$CLAUDE_PROJECT_DIR/.ai-factory.json" << 'EOF'
+{
+  "version": "2.4.0",
+  "agents": [
+    {
+      "id": "claude",
+      "skillsDir": ".claude/skills",
+      "installedSkills": ["aif"],
+      "mcp": {
+        "github": false,
+        "filesystem": false,
+        "postgres": false,
+        "chromeDevtools": false,
+        "playwright": false
+      }
+    }
+  ],
+  "extensions": []
+}
+EOF
+
+CLAUDE_FIRST_OUTPUT="$TMPDIR/update-claude-first.log"
+CLAUDE_SECOND_OUTPUT="$TMPDIR/update-claude-second.log"
+
+# First update should add bundled Claude subagents and persist state.
+(cd "$CLAUDE_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" update > "$CLAUDE_FIRST_OUTPUT" 2>&1)
+assert_contains "$CLAUDE_FIRST_OUTPUT" "\[claude\] Subagents:" "claude subagents section must be printed"
+assert_contains "$CLAUDE_FIRST_OUTPUT" "loop-orchestrator\\.md \(new in package\)" "new bundled subagent must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/best-practices-sidecar.md" "best-practices sidecar must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/commit-preparer.md" "commit preparer must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/docs-auditor.md" "docs auditor must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/implementer.md" "implementation subagent must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/implementer-isolation.md" "isolated implementation subagent must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/loop-orchestrator.md" "bundled Claude subagent must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/plan-polisher.md" "planning subagent must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/review-sidecar.md" "review sidecar must be installed"
+assert_exists "$CLAUDE_PROJECT_DIR/.claude/agents/security-sidecar.md" "security sidecar must be installed"
+
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const a=c.agents[0];if(a.subagentsDir!=='.claude/agents')process.exit(1);if(!Array.isArray(a.installedSubagents)||!a.installedSubagents.includes('best-practices-sidecar.md')||!a.installedSubagents.includes('commit-preparer.md')||!a.installedSubagents.includes('docs-auditor.md')||!a.installedSubagents.includes('implementer.md')||!a.installedSubagents.includes('implementer-isolation.md')||!a.installedSubagents.includes('loop-orchestrator.md')||!a.installedSubagents.includes('plan-polisher.md')||!a.installedSubagents.includes('review-sidecar.md')||!a.installedSubagents.includes('security-sidecar.md'))process.exit(1);if(!a.managedSubagents||!a.managedSubagents['best-practices-sidecar.md']||!a.managedSubagents['commit-preparer.md']||!a.managedSubagents['docs-auditor.md']||!a.managedSubagents['implementer.md']||!a.managedSubagents['implementer-isolation.md']||!a.managedSubagents['loop-orchestrator.md']||!a.managedSubagents['plan-polisher.md']||!a.managedSubagents['review-sidecar.md']||!a.managedSubagents['security-sidecar.md'])process.exit(1);" "$CLAUDE_PROJECT_DIR/.ai-factory.json"
+
+# Modify one managed subagent to simulate local drift, then update again.
+echo "" >> "$CLAUDE_PROJECT_DIR/.claude/agents/loop-orchestrator.md"
+echo "<!-- drift -->" >> "$CLAUDE_PROJECT_DIR/.claude/agents/loop-orchestrator.md"
+
+(cd "$CLAUDE_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" update > "$CLAUDE_SECOND_OUTPUT" 2>&1)
+assert_contains "$CLAUDE_SECOND_OUTPUT" "loop-orchestrator\\.md \(local drift\)" "subagent drift must be repaired on update"
+assert_contains "$CLAUDE_PROJECT_DIR/.claude/agents/loop-orchestrator.md" "name: loop-orchestrator" "reinstalled subagent content must be restored"
+
+echo "claude subagents smoke tests passed"

@@ -144,6 +144,7 @@ AI Factory can generate and maintain your project docs with a single command:
 | [Getting Started](docs/getting-started.md) | What is AI Factory, supported agents, CLI commands |
 | [Development Workflow](docs/workflow.md) | Workflow diagram, when to use `explore` vs `grounded`, spec-driven approach |
 | [Reflex Loop](docs/loop.md) | Iterative generate → evaluate → critique → refine workflow |
+| [Subagents](docs/subagents.md) | Claude Code only: repo-local planning, implementation, and loop subagents with narrow role contracts |
 | [Core Skills](docs/skills.md) | All slash commands — explore, grounded, plan, fix, implement, evolve, docs, and more |
 | [Skill Evolution](docs/evolve.md) | How /aif-fix patches feed into /aif-evolve to generate smarter skill rules |
 | [Plan Files](docs/plan-files.md) | Plan files, self-improvement patches, skill acquisition |

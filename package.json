@@ -12,6 +12,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "bash scripts/test-skills.sh",
+    "test:init": "bash scripts/test-init.sh",
     "test:update": "bash scripts/test-update.sh",
     "lint:unused": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "lint:dead": "knip --reporter compact",
@@ -48,6 +49,7 @@
     "bin",
     "dist",
     "skills",
+    "subagents",
     "mcp"
   ],
   "knip": {

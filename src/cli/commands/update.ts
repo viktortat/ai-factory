@@ -5,7 +5,16 @@ import {execSync} from 'child_process';
 import inquirer from 'inquirer';
 import {getCurrentVersion, loadConfig, saveConfig} from '../../core/config.js';
 import {compareExtensionVersions, getExtensionsDir, getNpmVersionCheckResult, loadExtensionManifest} from '../../core/extensions.js';
-import {buildManagedSkillsState, getAvailableSkills, partitionSkills, type SkillUpdateEntry, updateSkills} from '../../core/installer.js';
+import {
+  buildManagedSkillsState,
+  buildManagedSubagentsState,
+  getAvailableSkills,
+  partitionSkills,
+  type SkillUpdateEntry,
+  type SubagentUpdateEntry,
+  updateSkills,
+  updateSubagents,
+} from '../../core/installer.js';
 import {applyExtensionInjections} from '../../core/injections.js';
 import {
   installExtensionSkillsForAllAgents,
@@ -33,6 +42,8 @@ function formatReason(reason: string): string {
       return 'removed from package';
     case 'new-skill-not-installed':
       return 'new in package';
+    case 'new-in-package':
+      return 'new in package';
     case 'replaced-by-extension':
       return 'replaced by extension';
     case 'force-clean-reinstall':
@@ -46,12 +57,42 @@ function formatReason(reason: string): string {
   }
 }
 
-function groupEntriesByStatus(entries: SkillUpdateEntry[]): Record<'changed' | 'unchanged' | 'skipped' | 'removed', SkillUpdateEntry[]> {
+function groupEntriesByStatus<T extends { status: 'changed' | 'unchanged' | 'skipped' | 'removed' }>(
+  entries: T[],
+): Record<'changed' | 'unchanged' | 'skipped' | 'removed', T[]> {
   return {
-    changed: entries.filter(entry => entry.status === 'changed').sort((a, b) => a.skill.localeCompare(b.skill)),
-    unchanged: entries.filter(entry => entry.status === 'unchanged').sort((a, b) => a.skill.localeCompare(b.skill)),
-    skipped: entries.filter(entry => entry.status === 'skipped').sort((a, b) => a.skill.localeCompare(b.skill)),
-    removed: entries.filter(entry => entry.status === 'removed').sort((a, b) => a.skill.localeCompare(b.skill)),
+    changed: entries.filter(entry => entry.status === 'changed'),
+    unchanged: entries.filter(entry => entry.status === 'unchanged'),
+    skipped: entries.filter(entry => entry.status === 'skipped'),
+    removed: entries.filter(entry => entry.status === 'removed'),
+  };
+}
+
+function sortSkillEntries(entries: SkillUpdateEntry[]): SkillUpdateEntry[] {
+  return [...entries].sort((a, b) => a.skill.localeCompare(b.skill));
+}
+
+function sortSubagentEntries(entries: SubagentUpdateEntry[]): SubagentUpdateEntry[] {
+  return [...entries].sort((a, b) => a.subagent.localeCompare(b.subagent));
+}
+
+function groupSkillEntriesByStatus(entries: SkillUpdateEntry[]): Record<'changed' | 'unchanged' | 'skipped' | 'removed', SkillUpdateEntry[]> {
+  const grouped = groupEntriesByStatus(entries);
+  return {
+    changed: sortSkillEntries(grouped.changed),
+    unchanged: sortSkillEntries(grouped.unchanged),
+    skipped: sortSkillEntries(grouped.skipped),
+    removed: sortSkillEntries(grouped.removed),
+  };
+}
+
+function groupSubagentEntriesByStatus(entries: SubagentUpdateEntry[]): Record<'changed' | 'unchanged' | 'skipped' | 'removed', SubagentUpdateEntry[]> {
+  const grouped = groupEntriesByStatus(entries);
+  return {
+    changed: sortSubagentEntries(grouped.changed),
+    unchanged: sortSubagentEntries(grouped.unchanged),
+    skipped: sortSubagentEntries(grouped.skipped),
+    removed: sortSubagentEntries(grouped.removed),
   };
 }
 
@@ -199,11 +240,12 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
     );
   }
 
-  console.log(chalk.dim('Updating skills...\n'));
+  console.log(chalk.dim('Updating skills and agent assets...\n'));
 
   try {
     const availableSkills = await getAvailableSkills();
-    const entriesByAgent = new Map<string, SkillUpdateEntry[]>();
+    const skillEntriesByAgent = new Map<string, SkillUpdateEntry[]>();
+    const subagentEntriesByAgent = new Map<string, SubagentUpdateEntry[]>();
 
     const allReplacedSkills = collectReplacedSkills(extensions);
 
@@ -217,7 +259,11 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
         force,
       });
       agent.installedSkills = result.installedSkills;
-      entriesByAgent.set(agent.id, result.entries);
+      skillEntriesByAgent.set(agent.id, result.entries);
+
+      const subagentResult = await updateSubagents(agent, projectDir, { force });
+      agent.installedSubagents = subagentResult.installedSubagents;
+      subagentEntriesByAgent.set(agent.id, subagentResult.entries);
     }
 
     // Re-install replacement skills from extensions
@@ -296,17 +342,20 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
       const { base: baseSkills } = partitionSkills(agent.installedSkills);
       const managedBaseSkills = baseSkills.filter(skill => availableSkills.includes(skill) && !finalReplacedSkills.has(skill));
       agent.managedSkills = await buildManagedSkillsState(projectDir, agent, managedBaseSkills);
+      if (agent.subagentsDir) {
+        agent.managedSubagents = await buildManagedSubagentsState(projectDir, agent, agent.installedSubagents ?? []);
+      }
     }
 
     config.version = currentVersion;
     await saveConfig(projectDir, config);
 
-    console.log(chalk.green('✓ Skills updated successfully'));
+    console.log(chalk.green('✓ Skills and agent assets updated successfully'));
     console.log(chalk.green('✓ Configuration updated'));
 
     for (const agent of config.agents) {
-      const entries = entriesByAgent.get(agent.id) ?? [];
-      const grouped = groupEntriesByStatus(entries);
+      const entries = skillEntriesByAgent.get(agent.id) ?? [];
+      const grouped = groupSkillEntriesByStatus(entries);
       const changedWithContextWarnings: string[] = [];
 
       for (const entry of grouped.changed) {
@@ -359,6 +408,50 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
         console.log(chalk.yellow('  WARN: skill-context override may need review for changed skills:'));
         for (const skill of changedWithContextWarnings) {
           console.log(chalk.yellow(`    - ${skill} (.ai-factory/skill-context/${skill}/SKILL.md)`));
+        }
+      }
+
+      const subagentEntries = subagentEntriesByAgent.get(agent.id) ?? [];
+      if (agent.subagentsDir || subagentEntries.length > 0) {
+        const groupedSubagents = groupSubagentEntriesByStatus(subagentEntries);
+
+        console.log(chalk.bold(`[${agent.id}] Subagents:`));
+        console.log(chalk.dim(`  changed: ${groupedSubagents.changed.length}`));
+        console.log(chalk.dim(`  unchanged: ${groupedSubagents.unchanged.length}`));
+        console.log(chalk.dim(`  skipped: ${groupedSubagents.skipped.length}`));
+        console.log(chalk.dim(`  removed: ${groupedSubagents.removed.length}`));
+
+        if (groupedSubagents.changed.length > 0) {
+          console.log(chalk.bold('  Changed:'));
+          for (const entry of groupedSubagents.changed) {
+            console.log(chalk.dim(`    - ${entry.subagent} (${formatReason(entry.reason)})`));
+          }
+        }
+
+        if (groupedSubagents.skipped.length > 0) {
+          console.log(chalk.bold('  Skipped:'));
+          for (const entry of groupedSubagents.skipped) {
+            console.log(chalk.dim(`    - ${entry.subagent} (${formatReason(entry.reason)})`));
+          }
+        }
+
+        if (groupedSubagents.removed.length > 0) {
+          console.log(chalk.bold('  Removed:'));
+          for (const entry of groupedSubagents.removed) {
+            console.log(chalk.dim(`    - ${entry.subagent} (${formatReason(entry.reason)})`));
+          }
+        }
+
+        const recoveredSubagents = groupedSubagents.changed.filter(entry => [
+          'missing-managed-state',
+          'missing-installed-artifact',
+          'source-missing',
+        ].includes(entry.reason));
+        if (recoveredSubagents.length > 0) {
+          console.log(chalk.yellow('  WARN: managed subagent state recovered for:'));
+          for (const entry of recoveredSubagents) {
+            console.log(chalk.yellow(`    - ${entry.subagent} (${formatReason(entry.reason)})`));
+          }
         }
       }
 

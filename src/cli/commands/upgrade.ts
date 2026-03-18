@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
 import { loadConfig, saveConfig, getCurrentVersion } from '../../core/config.js';
-import { installSkills, getAvailableSkills, partitionSkills } from '../../core/installer.js';
+import { buildManagedSkillsState, buildManagedSubagentsState, installSkills, installSubagents, getAvailableSkills, partitionSkills } from '../../core/installer.js';
 import { getAgentConfig } from '../../core/agents.js';
 import { fileExists, removeDirectory, removeFile } from '../../utils/fs.js';
 
@@ -209,8 +209,19 @@ export async function upgradeCommand(): Promise<void> {
       skills: availableSkills,
       agentId: agent.id,
     });
+    const installedSubagents = agent.subagentsDir
+      ? await installSubagents({
+        projectDir,
+        subagentsDir: agent.subagentsDir,
+      })
+      : [];
 
     agent.installedSkills = [...installedSkills, ...customSkills];
+    if (agent.subagentsDir) {
+      agent.installedSubagents = installedSubagents;
+      agent.managedSubagents = await buildManagedSubagentsState(projectDir, agent, installedSubagents);
+    }
+    agent.managedSkills = await buildManagedSkillsState(projectDir, agent, installedSkills);
   }
 
   // Step 3: Update config to latest version and multi-agent schema

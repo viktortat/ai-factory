@@ -3,6 +3,7 @@ export interface AgentConfig {
   displayName: string;
   configDir: string;
   skillsDir: string;
+  subagentsDir?: string;
   settingsFile: string | null;
   supportsMcp: boolean;
   skillsCliAgent: string | null;
@@ -14,6 +15,7 @@ const AGENT_REGISTRY: Record<string, AgentConfig> = {
     displayName: 'Claude Code',
     configDir: '.claude',
     skillsDir: '.claude/skills',
+    subagentsDir: '.claude/agents',
     settingsFile: '.mcp.json',
     supportsMcp: true,
     skillsCliAgent: 'claude-code',

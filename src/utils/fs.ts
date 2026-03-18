@@ -14,12 +14,21 @@ export function getSkillsDir(): string {
   return path.join(getPackageRoot(), 'skills');
 }
 
+export function getSubagentsDir(): string {
+  return path.join(getPackageRoot(), 'subagents');
+}
+
 export function getMcpDir(): string {
   return path.join(getPackageRoot(), 'mcp');
 }
 
 export async function copyDirectory(src: string, dest: string): Promise<void> {
   await fs.ensureDir(dest);
+  await fs.copy(src, dest, { overwrite: true });
+}
+
+export async function copyFile(src: string, dest: string): Promise<void> {
+  await fs.ensureDir(path.dirname(dest));
   await fs.copy(src, dest, { overwrite: true });
 }
 
