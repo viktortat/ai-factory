@@ -18,8 +18,7 @@
         "commit-preparer.md",
         "docs-auditor.md",
         "implement-coordinator.md",
-        "implementer.md",
-        "implementer-isolation.md",
+        "implement-worker.md",
         "loop-critic.md",
         "loop-evaluator.md",
         "loop-invariant-prep.md",
@@ -124,8 +123,7 @@ your-project/
 │   │   ├── commit-preparer.md
 │   │   ├── docs-auditor.md
 │   │   ├── implement-coordinator.md
-│   │   ├── implementer.md
-│   │   ├── implementer-isolation.md
+│   │   ├── implement-worker.md
 │   │   ├── loop-critic.md
 │   │   ├── loop-evaluator.md
 │   │   ├── loop-invariant-prep.md

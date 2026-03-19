@@ -79,8 +79,7 @@ assert_contains "$INIT_OUTPUT" "Installed subagents: ${EXPECTED_SUBAGENTS}" "Cla
 assert_exists "$PROJECT_DIR/.claude/agents/best-practices-sidecar.md" "Claude init must install best-practices sidecar"
 assert_exists "$PROJECT_DIR/.claude/agents/commit-preparer.md" "Claude init must install commit preparer"
 assert_exists "$PROJECT_DIR/.claude/agents/docs-auditor.md" "Claude init must install docs auditor"
-assert_exists "$PROJECT_DIR/.claude/agents/implementer.md" "Claude init must install implementation subagent"
-assert_exists "$PROJECT_DIR/.claude/agents/implementer-isolation.md" "Claude init must install isolated implementation subagent"
+assert_exists "$PROJECT_DIR/.claude/agents/implement-worker.md" "Claude init must install isolated implementation coordinator"
 assert_exists "$PROJECT_DIR/.claude/agents/loop-orchestrator.md" "Claude init must install bundled subagents"
 assert_exists "$PROJECT_DIR/.claude/agents/plan-polisher.md" "Claude init must install planning subagent"
 assert_exists "$PROJECT_DIR/.claude/agents/review-sidecar.md" "Claude init must install review sidecar"
@@ -94,6 +93,6 @@ if [[ "$ACTUAL_SUBAGENTS" != "$EXPECTED_SUBAGENTS" ]]; then
   exit 1
 fi
 
-EXPECTED_SUBAGENTS="$EXPECTED_SUBAGENTS" node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const a=c.agents[0];const expected=Number(process.env.EXPECTED_SUBAGENTS);if(a.id!=='claude')process.exit(1);if(a.subagentsDir!=='.claude/agents')process.exit(1);if(!Array.isArray(a.installedSubagents)||a.installedSubagents.length!==expected)process.exit(1);if(!a.installedSubagents.includes('best-practices-sidecar.md'))process.exit(1);if(!a.installedSubagents.includes('commit-preparer.md'))process.exit(1);if(!a.installedSubagents.includes('docs-auditor.md'))process.exit(1);if(!a.installedSubagents.includes('implementer.md'))process.exit(1);if(!a.installedSubagents.includes('implementer-isolation.md'))process.exit(1);if(!a.installedSubagents.includes('loop-orchestrator.md'))process.exit(1);if(!a.installedSubagents.includes('plan-polisher.md'))process.exit(1);if(!a.installedSubagents.includes('review-sidecar.md'))process.exit(1);if(!a.installedSubagents.includes('security-sidecar.md'))process.exit(1);if(!a.managedSubagents||Object.keys(a.managedSubagents).length!==expected)process.exit(1);" "$PROJECT_DIR/.ai-factory.json"
+EXPECTED_SUBAGENTS="$EXPECTED_SUBAGENTS" node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const a=c.agents[0];const expected=Number(process.env.EXPECTED_SUBAGENTS);if(a.id!=='claude')process.exit(1);if(a.subagentsDir!=='.claude/agents')process.exit(1);if(!Array.isArray(a.installedSubagents)||a.installedSubagents.length!==expected)process.exit(1);if(!a.installedSubagents.includes('best-practices-sidecar.md'))process.exit(1);if(!a.installedSubagents.includes('commit-preparer.md'))process.exit(1);if(!a.installedSubagents.includes('docs-auditor.md'))process.exit(1);if(!a.installedSubagents.includes('implement-worker.md'))process.exit(1);if(!a.installedSubagents.includes('loop-orchestrator.md'))process.exit(1);if(!a.installedSubagents.includes('plan-polisher.md'))process.exit(1);if(!a.installedSubagents.includes('review-sidecar.md'))process.exit(1);if(!a.installedSubagents.includes('security-sidecar.md'))process.exit(1);if(!a.managedSubagents||Object.keys(a.managedSubagents).length!==expected)process.exit(1);" "$PROJECT_DIR/.ai-factory.json"
 
 echo "claude init smoke tests passed"

@@ -1,6 +1,6 @@
 ---
 name: best-practices-sidecar
-description: Read-only background best-practices sidecar for the current implementation scope. Use from a top-level implementer agent after code changes when a concise maintainability review is needed.
+description: Read-only background best-practices sidecar for the current implementation scope. Use from implement-coordinator after code changes when a concise maintainability review is needed.
 tools: Read, Glob, Grep
 model: inherit
 disallowedTools: Write, Edit

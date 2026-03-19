@@ -12,8 +12,7 @@ This repository uses that feature for six narrow purposes:
 - splitting `/aif-loop` into small, single-responsibility roles so the Reflex Loop stays predictable, cheaper to run, and easier to reason about
 - adding one planning specialist that can run `/aif-plan` and `/aif-improve` as a local critique/refinement loop before implementation
 - adding one planning coordinator that iteratively launches the planning specialist until the plan passes critique or the iteration budget is exhausted
-- adding one implementation specialist that can run `/aif-implement`, loop on `/aif-verify`, and apply read-only quality sidecars before declaring the work done
-- adding one implementation coordinator that parses plan dependency graphs and dispatches independent tasks in parallel via isolated workers
+- adding one implementation coordinator that parses plan dependency graphs, implements single tasks directly with quality sidecars, and dispatches independent tasks in parallel via isolated workers
 - exposing background execution sidecars for top-level Claude agent orchestration
 
 The intended benefit is:
@@ -25,7 +24,7 @@ The intended benefit is:
 ## Scope
 
 Current scope is intentionally small:
-- one planning subagent, one planning coordinator, one implementation coordinator, two implementation workers, five execution sidecars, and the loop-related subagents are defined
+- one planning subagent, one planning coordinator, one implementation coordinator with its worker, five execution sidecars, and the loop-related subagents are defined
 - source files live in the package `subagents/` directory
 - managed copies are installed into `.claude/agents/`
 - all of them are project-local, not user-global
@@ -38,9 +37,8 @@ If you edit these files manually, reload them in Claude Code with `/agents` or b
 | Agent | Purpose | Model | Tools |
 |---|---|---|---|
 | `plan-coordinator` | iteratively launch `plan-polisher` in a critique→improve loop until the plan passes or the iteration budget is exhausted. **Top-level agent only** | `inherit` | `Agent(plan-polisher), Read, Glob, Grep, Bash` |
-| `implement-coordinator` | parse plan dependency graph, dispatch independent tasks in parallel via `implementer-isolation`, merge results. **Top-level agent only** | `inherit` | `Agent(implementer, implementer-isolation), Read, Write, Edit, Glob, Grep, Bash` |
-| `implementer` | execute `/aif-implement`, loop with `/aif-verify`, and coordinate review/security/docs/commit/best-practice sidecars before stopping | `inherit` | `Agent(best-practices-sidecar, commit-preparer, docs-auditor, review-sidecar, security-sidecar), Read, Write, Edit, Glob, Grep, Bash` |
-| `implementer-isolation` | isolated worktree variant of `implementer` for risky or collision-prone execution loops | `inherit` | `Agent(best-practices-sidecar, commit-preparer, docs-auditor, review-sidecar, security-sidecar), Read, Write, Edit, Glob, Grep, Bash` |
+| `implement-coordinator` | parse plan dependency graph, implement single tasks directly with quality sidecars, dispatch `implement-worker` workers for parallel tasks, merge results. **Top-level agent only** | `inherit` | `Agent(implement-worker, best-practices-sidecar, commit-preparer, docs-auditor, review-sidecar, security-sidecar), Read, Write, Edit, Glob, Grep, Bash` |
+| `implement-worker` | isolated worktree worker for parallel task execution — implements one task, runs local quality checks, returns results to coordinator | `inherit` | `Read, Write, Edit, Glob, Grep, Bash` |
 | `best-practices-sidecar` | background read-only best-practices sidecar for current implementation scope | `inherit` | `Read, Glob, Grep, Bash` |
 | `plan-polisher` | create or refresh an `/aif-plan` artifact, critique it, and iterate with `/aif-improve` until the plan is stable | `inherit` | `Read, Write, Edit, Glob, Grep, Bash` |
 | `commit-preparer` | background read-only commit preparation sidecar for current implementation scope | `sonnet` | `Read, Glob, Grep, Bash` |
@@ -77,33 +75,23 @@ It automates the iterative refinement loop:
 
 This gives the user a fire-and-forget planning experience: start `claude --agent plan-coordinator "implement user auth with JWT"` and get back a polished, implementation-ready plan without manual re-runs.
 
-## How `implementer` Fits
-
-`implementer` is also outside `/aif-loop`. It is the execution-side companion to `plan-polisher` and:
-- runs an `/aif-implement`-compatible pass directly inside the subagent
-- verifies the result with an `/aif-verify`-compatible pass
-- runs read-only sidecars aligned to `/aif-review`, `/aif-security-checklist`, `/aif-docs`, `/aif-commit`, and `/aif-best-practices`
-- feeds material findings back into the next refinement round until the implementation is clean enough to stop
-
-When `implementer` runs as a top-level custom agent session, it can launch sidecars as background workers. When `implementer` is invoked as an ordinary subagent, nested delegation is unavailable, so it falls back to equivalent local sidecar passes in the same context.
-
-It also establishes a one-time run policy for optional follow-ups:
-- `docs_policy` controls whether docs are skipped, asked once, or safely automated
-- `commit_policy` controls whether commit prompts happen at checkpoints, only once at the end, or are skipped
-- push remains manual by default
-
-`implementer-isolation` is the same execution contract, but with `isolation: worktree`. Prefer it when the implementation is risky, broad, or likely to conflict with other ongoing edits.
-
 ## How `implement-coordinator` Fits
 
-`implement-coordinator` sits above `implementer` and `implementer-isolation`. It is a **top-level agent** that must be started with `claude --agent implement-coordinator` because it needs to spawn other subagents — something ordinary subagents cannot do.
+`implement-coordinator` is the execution-side companion to `plan-coordinator`. It is a **top-level agent** that must be started with `claude --agent implement-coordinator` because it needs to spawn subagents.
 
-It automates the process of reading a plan, identifying which tasks can run at the same time, and dispatching them in parallel:
+It combines coordination and implementation in one agent:
+
+- **Single-task layers**: implements the task directly within the coordinator, using quality sidecars (`review-sidecar`, `security-sidecar`, `best-practices-sidecar`, `docs-auditor`, `commit-preparer`) as background workers. This avoids isolation overhead and gives full sidecar coverage.
+- **Parallel-task layers**: dispatches `implement-worker` workers concurrently, one per task. Each worker gets its own worktree so file edits cannot collide. Workers run local quality checks (no sidecars — subagents cannot spawn children).
+
+This design eliminates the previous `implementer` / `implementer-isolation` layer, which had a structural problem: when spawned as subagents of the coordinator, they could not spawn their own sidecar subagents. By merging implementation logic into the coordinator itself, single-task execution gets real sidecar support, and parallel execution stays cleanly isolated.
+
+Workflow:
 
 1. Parse the active plan and build a dependency graph from `(depends on X, Y)` annotations.
 2. Identify layers of independent tasks — tasks whose dependencies are all satisfied.
-3. If a layer has multiple tasks, launch one `implementer-isolation` per task concurrently. Each worker gets its own worktree, so file edits cannot collide.
-4. If a layer has a single task, use the regular `implementer` to avoid worktree overhead.
+3. If a layer has multiple tasks, launch one `implement-worker` per task concurrently.
+4. If a layer has a single task, implement it directly with sidecar support.
 5. After each layer completes, merge worktree results, run verification, and advance to the next layer.
 6. Commits are handled centrally by the coordinator, not by individual workers.
 
@@ -145,20 +133,16 @@ This gives crash recovery — if the session dies mid-run, the plan file shows e
 | You want a polished plan without manual re-runs | `plan-coordinator` | Iterates critique→improve automatically until the plan is ready |
 | Quick one-shot plan that you will review yourself | `plan-polisher` (as subagent) | Single cycle, less overhead |
 | Plan has independent tasks that can run simultaneously | `implement-coordinator` | Parallel dispatch with automatic worktree isolation |
-| Small or routine implementation on a quiet branch | `implementer` | Lower overhead, faster turnaround |
-| Risky refactor or broad cross-cutting change | `implementer-isolation` | Worktree isolation lowers blast radius |
-| Parallel work is already happening in the same repo | `implementer-isolation` | Reduces edit collision risk |
-| You expect aggressive experimentation before convergence | `implementer-isolation` | Safer place for repeated refinement rounds |
-| Straightforward finish-up after a mostly completed plan | `implementer` | Simpler and cheaper than isolated execution |
+| Any implementation task (single or parallel) | `implement-coordinator` | Handles both modes — direct execution for single tasks, isolation workers for parallel |
 
 ## Quality Sidecars
 
 `best-practices-sidecar`, `commit-preparer`, `docs-auditor`, `review-sidecar`, and `security-sidecar` exist for the Claude-native case where a custom top-level orchestrator can legally delegate:
 - all are `background: true`
 - all are read-only
-- all of them are intended to report concise blocker-focused findings back to `implementer`
+- all of them are intended to report concise blocker-focused findings back to `implement-coordinator`
 
-This lets the execution loop keep noisy review, security, docs-drift, commit-analysis, and maintainability analysis work out of the main implementer context when Claude is running in full custom-agent mode.
+This lets the execution loop keep noisy review, security, docs-drift, commit-analysis, and maintainability analysis work out of the main coordinator context when Claude is running in full custom-agent mode.
 
 The loop prep workers are also good background candidates and are configured that way:
 - `loop-test-prep`
@@ -197,22 +181,22 @@ This keeps responsibilities narrow:
 - critic explains what failed
 - refiner changes only what is needed
 - `plan-polisher` stays outside the Reflex Loop and focuses only on plan quality
-- `implementer` stays outside the Reflex Loop and focuses on implementation quality closure
-- `best-practices-sidecar`, `commit-preparer`, `docs-auditor`, `review-sidecar`, and `security-sidecar` stay outside the Reflex Loop and support only the execution worker
+- `implement-coordinator` stays outside the Reflex Loop and focuses on implementation quality closure
+- `best-practices-sidecar`, `commit-preparer`, `docs-auditor`, `review-sidecar`, and `security-sidecar` stay outside the Reflex Loop and support only the implementation coordinator
 
 ## Design Principles
 
 ### Read-only roles stay read-only where possible
 
-The loop's planning, evaluation, critique, and prep roles do not need write access, so they are intentionally constrained. Most of them also use `permissionMode: plan`, which matches Claude Code's read-only exploration mode. `plan-polisher` and `implementer` are the exceptions because they own end-to-end refinement of their artifacts.
+The loop's planning, evaluation, critique, and prep roles do not need write access, so they are intentionally constrained. Most of them also use `permissionMode: plan`, which matches Claude Code's read-only exploration mode. `plan-polisher` and `implement-coordinator` are the exceptions because they own end-to-end refinement of their artifacts.
 
 ### Writer roles are limited
 
-Only `loop-producer`, `loop-refiner`, `plan-polisher`, `implementer`, and `implementer-isolation` can modify content. `best-practices-sidecar`, `commit-preparer`, `docs-auditor`, `review-sidecar`, and `security-sidecar` are intentionally read-only. This reduces the chance of accidental state drift across phases and keeps write access tied to explicit artifact ownership.
+Only `loop-producer`, `loop-refiner`, `plan-polisher`, `implement-coordinator`, and `implement-worker` can modify content. `best-practices-sidecar`, `commit-preparer`, `docs-auditor`, `review-sidecar`, and `security-sidecar` are intentionally read-only. This reduces the chance of accidental state drift across phases and keeps write access tied to explicit artifact ownership.
 
 ### Cheap where possible, stronger where necessary
 
-`haiku` is used for prep/planning roles where the output is short and structured. `sonnet` is used for generation, evaluation, critique, and refinement where quality matters more. The two non-loop workers also use `sonnet` because they have to integrate multiple workflow skills and make stop/go judgments.
+`haiku` is used for prep/planning roles where the output is short and structured. `sonnet` is used for generation, evaluation, critique, and refinement where quality matters more. The non-loop agents (`implement-coordinator`, `implement-worker`, `plan-polisher`) use `inherit` to match the session's model, since they handle complex multi-skill workflows where model choice should follow the user's preference.
 
 ### Output contracts are strict
 
@@ -231,7 +215,7 @@ These repo-local agents follow current Claude Code subagent behavior:
 - subagents are selected partly from the `description` field, so descriptions should be explicit
 - manual edits to `.claude/agents/*.md` are not always picked up until reload
 
-Because of that, the loop design favors phase-specialized workers instead of deep agent trees, `plan-polisher` runs its critique/refine cycle locally instead of trying to delegate the improve pass again, and `implementer` can delegate only when it is the top-level custom agent. Otherwise it falls back to local review/security/best-practice passes.
+Because of that, the loop design favors phase-specialized workers instead of deep agent trees. `plan-polisher` runs its critique/refine cycle locally instead of trying to delegate the improve pass again. `implement-coordinator` can spawn sidecars directly because it runs as a top-level agent. Its isolation workers (`implement-worker`) run local quality passes instead of trying to spawn nested sidecars.
 
 ## Top-Level Agent Sessions
 
@@ -246,8 +230,8 @@ The critical difference: **top-level agents can spawn subagents, ordinary subage
 
 Use `claude --agent <name>` when:
 
-- The agent needs to **coordinate other agents**. An orchestrator that dispatches work to multiple workers must be top-level because it needs `Agent(...)` tool access to spawn them. Example: `implement-coordinator` dispatches multiple `implementer-isolation` workers in parallel — this only works from the top level.
-- The agent needs to **run background sidecars**. Background subagents are pre-approved for permissions at launch. This works cleanly from a top-level session but not from inside another subagent. Example: `implementer` running as top-level can launch `review-sidecar` and `security-sidecar` in background.
+- The agent needs to **coordinate other agents**. An orchestrator that dispatches work to multiple workers must be top-level because it needs `Agent(...)` tool access to spawn them. Example: `implement-coordinator` dispatches multiple `implement-worker` workers in parallel — this only works from the top level.
+- The agent needs to **run background sidecars**. Background subagents are pre-approved for permissions at launch. This works cleanly from a top-level session but not from inside another subagent. Example: `implement-coordinator` running as top-level can launch `review-sidecar` and `security-sidecar` in background during single-task execution.
 - The workflow is the **primary purpose of the session**. If you start Claude Code specifically to run an implementation plan from start to finish, launching the coordinator as top-level avoids an unnecessary wrapper layer.
 
 ### When NOT to use a top-level agent
@@ -263,8 +247,7 @@ Stay with ordinary subagent invocation when:
 | Agent | Why top-level | Command |
 |---|---|---|
 | `plan-coordinator` | Must spawn `plan-polisher` iteratively for critique→improve loop | `claude --agent plan-coordinator` |
-| `implement-coordinator` | Must spawn `implementer` and `implementer-isolation` workers in parallel | `claude --agent implement-coordinator` |
-| `implementer` | Can optionally run as top-level to enable background sidecars; also works as ordinary subagent with local fallback | `claude --agent implementer` |
+| `implement-coordinator` | Must spawn `implement-worker` workers and quality sidecars | `claude --agent implement-coordinator` |
 
 All other agents in this repo are designed as ordinary subagents and do not benefit from top-level execution.
 
@@ -303,8 +286,7 @@ claude --agent implement-coordinator
 **Simple single-task implementation (no coordinator needed):**
 
 ```bash
-# Inside a normal Claude Code session, the agent is invoked as a subagent
-# Use /aif-implement or let Claude pick the implementer automatically
+# Inside a normal Claude Code session, use /aif-implement directly
 ```
 
 ## Why Only Claude For Now
