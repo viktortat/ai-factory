@@ -371,7 +371,7 @@ Existing project agents in `.claude/agents/`:
 
 | Agent | Role | Model | Tools |
 |---|---|---|---|
-| `plan-coordinator` | iterative plan refinement coordinator — launches `plan-polisher` in a critique→improve loop until plan passes or iteration budget exhausted. Run as `claude --agent plan-coordinator` | `inherit` | `Agent(plan-polisher), Read, Glob, Grep, Bash` |
+| `plan-coordinator` | iterative plan refinement coordinator — launches `plan-polisher` in a critique→improve loop until plan passes or iteration budget exhausted. Accepts `tests`/`docs` params (`yes`/`no`/`infer`; default `infer`) and passes them to each `plan-polisher` invocation. Run as `claude --agent plan-coordinator` | `inherit` | `Agent(plan-polisher), Read, Glob, Grep, Bash` |
 | `implement-coordinator` | parallel execution coordinator — parses plan dependency graph, implements single tasks directly with sidecars, dispatches `implement-worker` workers for parallel tasks, merges results. Run as `claude --agent implement-coordinator` | `inherit` | `Agent(implement-worker, best-practices-sidecar, commit-preparer, docs-auditor, review-sidecar, security-sidecar), Read, Write, Edit, Glob, Grep, Bash` |
 | `implement-worker` | isolated worktree worker for parallel task execution — implements one task, runs local quality checks, returns results to coordinator | `inherit` | `Read, Write, Edit, Glob, Grep, Bash` |
 | `best-practices-sidecar` | background read-only best-practices worker | `inherit` | `Read, Glob, Grep` |
@@ -386,7 +386,7 @@ Existing project agents in `.claude/agents/`:
 | `loop-test-prep` | lightweight test prep | `haiku` | `Read, Glob, Grep` |
 | `loop-perf-prep` | performance prep | `haiku` | `Read, Glob, Grep` |
 | `loop-invariant-prep` | invariants/consistency prep | `haiku` | `Read, Glob, Grep` |
-| `plan-polisher` | run `/aif-plan`, critique the result, and loop `/aif-improve` until stable | `inherit` | `Read, Write, Edit, Glob, Grep, Bash` |
+| `plan-polisher` | run `/aif-plan`, critique the result, and loop `/aif-improve` until stable. Accepts `tests`/`docs` params (`yes`/`no`/`infer`; default `infer` — auto-detects from project) | `inherit` | `Read, Write, Edit, Glob, Grep, Bash` |
 | `review-sidecar` | background read-only review worker | `inherit` | `Read, Glob, Grep` |
 | `security-sidecar` | background read-only security worker | `inherit` | `Read, Glob, Grep` |
 

@@ -25,12 +25,14 @@ The user provides a planning request — the same input they would give to `/aif
 
 ## Configuration
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| max_iterations | 3 | Maximum critique→improve cycles |
-| mode | fast | Planning mode: `fast` or `full` |
+| Parameter      | Default | Description                                                          |
+|----------------|---------|----------------------------------------------------------------------|
+| max_iterations | 3       | Maximum critique→improve cycles                                      |
+| mode           | fast    | Planning mode: `fast` or `full`                                      |
+| tests          | infer   | Include test tasks: `yes`, `no`, or `infer` (auto-detect from project) |
+| docs           | infer   | Include docs tasks: `yes`, `no`, or `infer` (auto-detect from project) |
 
-Override via input: `max_iterations: 5, mode: full`
+Override via input: `max_iterations: 5, mode: full, tests: yes, docs: yes`
 
 ## Execution algorithm
 
@@ -64,6 +66,8 @@ report summary
   - plan file path (after first pass)
   - remaining issues from previous critique
   - `mode: fast` or `mode: full` (from user config or default)
+  - `tests: yes/no/infer` (from user config or default `infer`)
+  - `docs: yes/no/infer` (from user config or default `infer`)
 - Do NOT pass raw plan content — let plan-polisher read the file itself.
 - On the first dispatch, always include the mode explicitly so plan-polisher uses the correct file location.
 

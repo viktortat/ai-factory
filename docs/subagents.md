@@ -79,6 +79,21 @@ It automates the iterative refinement loop:
 2. Check the result: if `needs_further_refinement: yes`, launch `plan-polisher` again to critique and improve the existing plan.
 3. Repeat until the plan passes critique, the iteration budget is exhausted (default: 3), or stagnation is detected (2 consecutive iterations with no material change).
 
+### Configuration
+
+Both agents accept `tests` and `docs` parameters that control whether the generated plan includes testing and documentation tasks:
+
+| Parameter | Default | Values | Description |
+|-----------|---------|--------|-------------|
+| `tests`   | `infer` | `yes`, `no`, `infer` | Include test tasks in the plan |
+| `docs`    | `infer` | `yes`, `no`, `infer` | Include documentation tasks in the plan |
+
+When set to `infer` (the default), `plan-polisher` auto-detects from the project structure:
+- **tests** → `yes` if the project has a test suite (`tests/`, `__tests__/`, `*.test.*`, `*.spec.*`, test config files)
+- **docs** → `yes` if the project has documentation infrastructure (`docs/`, structured `README.md`, docstring conventions)
+
+Explicit values from the caller always take priority over inference.
+
 This gives the user a fire-and-forget planning experience: start `claude --agent plan-coordinator "implement user auth with JWT"` and get back a polished, implementation-ready plan without manual re-runs.
 
 ## How `implement-coordinator` Fits
@@ -266,6 +281,9 @@ All other agents in this repo are designed as ordinary subagents and do not bene
 # Step 1: Polish the plan
 claude --agent plan-coordinator "implement user authentication with JWT"
 
+# With explicit tests/docs control
+claude --agent plan-coordinator "implement user authentication with JWT, tests: yes, docs: yes"
+
 # Step 2: Implement it (reads the plan created in step 1)
 claude --agent implement-coordinator
 ```
@@ -277,6 +295,9 @@ A single combined agent is not feasible — Claude Code's single-responsibility 
 ```bash
 # Start the plan coordinator — it will loop critique→improve automatically
 claude --agent plan-coordinator "implement user authentication with JWT"
+
+# Force tests and docs inclusion
+claude --agent plan-coordinator "implement user authentication with JWT, tests: yes, docs: yes"
 
 # Polish an existing plan
 claude --agent plan-coordinator "@.ai-factory/plans/feature-auth.md"

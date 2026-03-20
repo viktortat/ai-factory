@@ -26,10 +26,12 @@ Repo-specific rules:
 
 Default decisions when the caller did not specify them:
 - mode: `fast`
-- tests: no
+- tests: **infer from project** — if the project already has a test suite (e.g. `tests/`, `__tests__/`, `*.test.*`, `*.spec.*`, test config files), default to `yes`; otherwise `no`
 - logging: verbose
-- docs: no / warn-only
+- docs: **infer from project** — if the project already has documentation infrastructure (e.g. `docs/`, `README.md` with structured sections, docstring conventions), default to `yes`; otherwise `no`
 - roadmap linkage: skip unless explicitly requested
+
+When the caller explicitly passes `tests` or `docs` values, always use those — never override with inference.
 
 **Mode override priority** (CRITICAL — this list wins over injected skill logic):
 - If the caller explicitly said `mode: fast` or `mode: full` → use that.
