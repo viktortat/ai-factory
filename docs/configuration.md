@@ -1,4 +1,4 @@
-[← Extensions](extensions.md) · [Back to README](../README.md)
+[← Extensions](extensions.md) · [Back to README](../README.md) · [Config Reference →](config-reference.md)
 
 # Configuration
 
@@ -76,6 +76,112 @@ Extension refresh uses the saved `source` field:
 
 When GitHub-backed extension refreshes are frequent, set `GITHUB_TOKEN` to raise the GitHub API rate limit used by these checks.
 
+## `.ai-factory/config.yaml` — User Preferences
+
+User-editable configuration file for language, paths, workflow settings, and rules hierarchy. Created by `/aif` during project setup.
+
+For the complete key-by-key schema plus the built-in skill read/write matrix, see [Config Reference](config-reference.md).
+
+**Two-file architecture:**
+- `.ai-factory.json` — CLI state (agents, installed skills, MCP config) — managed by ai-factory package
+- `config.yaml` — User preferences (language, paths, workflow) — edited by developers
+
+```yaml
+# AI Factory Configuration
+# All sections are optional — defaults are used when not specified.
+
+# Language Settings
+language:
+  # Language for AI-agent communication (prompts, questions, explanations)
+  # Options: en, ru, de, fr, es, zh, ja, ko, pt, it
+  ui: en
+
+  # Language for generated artifacts (plans, specs, documentation)
+  artifacts: en
+
+  # How to handle technical terms: keep | translate
+  technical_terms: keep
+
+# Path Configuration (all relative to project root)
+paths:
+  description: .ai-factory/DESCRIPTION.md
+  architecture: .ai-factory/ARCHITECTURE.md
+  docs: docs/
+  roadmap: .ai-factory/ROADMAP.md
+  research: .ai-factory/RESEARCH.md
+  rules_file: .ai-factory/RULES.md
+  plan: .ai-factory/PLAN.md
+  plans: .ai-factory/plans/
+  fix_plan: .ai-factory/FIX_PLAN.md
+  security: .ai-factory/SECURITY.md
+  references: .ai-factory/references/
+  patches: .ai-factory/patches/
+  evolutions: .ai-factory/evolutions/
+  evolution: .ai-factory/evolution/
+  specs: .ai-factory/specs/
+  rules: .ai-factory/rules/
+
+# Workflow Settings
+workflow:
+  auto_create_dirs: true           # Create .ai-factory/ directories when missing
+  plan_id_format: slug             # slug | timestamp | uuid
+  analyze_updates_architecture: true
+  architecture_updates_roadmap: true
+  verify_mode: normal              # strict | normal | lenient
+
+# Git Settings
+git:
+  enabled: true                    # Set false for non-git repositories
+  base_branch: main                # Diff / review / merge target when git is enabled
+  create_branches: true            # Full plans may create branches when enabled
+  branch_prefix: feature/          # Prefix for auto-created plan branches
+
+# Rules Configuration
+rules:
+  base: .ai-factory/rules/base.md  # Base rules file
+  # api: .ai-factory/rules/api.md
+  # frontend: .ai-factory/rules/frontend.md
+  # backend: .ai-factory/rules/backend.md
+  # database: .ai-factory/rules/database.md
+```
+
+**Current config-aware skills** read `config.yaml` at Step 0. This currently includes:
+- Core workflow and quality commands: `/aif`, `/aif-plan`, `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-review`, `/aif-roadmap`, `/aif-explore`, `/aif-loop`, `/aif-rules`
+- Additional utility commands: `/aif-architecture`, `/aif-docs`, `/aif-fix`, `/aif-improve`, `/aif-evolve`, `/aif-reference`, `/aif-security-checklist`
+
+Other skills are config-agnostic for now and rely on repository context, explicit arguments, or fixed non-configurable paths such as `skill-context`.
+
+Current config-agnostic built-ins include `/aif-best-practices`, `/aif-build-automation`, `/aif-ci`, `/aif-dockerize`, `/aif-grounded`, and `/aif-skill-generator`.
+
+**Git workflow semantics:**
+- `git.enabled: false` disables branch/worktree assumptions entirely. `/aif-plan full` still creates a rich full plan, but it stores it in `paths.plans/<slug>.md` without running git commands.
+- `git.base_branch` is the branch used for diff, review, verify, and merge guidance. Skills must not hardcode `main`.
+- `git.create_branches: false` keeps git awareness enabled but disables automatic branch creation. This lets teams keep full plans without forcing branch-per-feature flow.
+- `paths.plan` remains the default fast-plan file. If you prefer fast plans inside `paths.plans/`, change `paths.plan` manually in `config.yaml`.
+- `paths.docs` controls where `/aif-docs` writes the detailed documentation pages. `README.md` remains the landing page in the project root.
+
+**Current schema limits:** `config.yaml` still leaves `.ai-factory/skill-context/` fixed by command contract. `README.md` and `docs-html/` remain fixed by current documentation workflow.
+
+### Rules Hierarchy
+
+AI Factory supports a three-level rules hierarchy:
+
+1. **paths.rules_file** — Axioms (universal project rules)
+   - Short, flat list of hard requirements
+   - Managed by `/aif-rules`
+
+2. **rules/base.md** — Project-specific base conventions
+   - Naming conventions, module boundaries, error handling
+   - Created by `/aif` from codebase analysis
+
+3. **rules.<area>** — Area-specific rule file paths in `config.yaml`
+   - Examples: `api`, `frontend`, `backend`, `database`
+   - Created by `/aif-rules area:<name>`
+
+Each area is a named config key whose value is the rule file path. Example: `rules.api: .ai-factory/rules/api.md`.
+
+**Priority:** More specific rules win. `rules.api` > `rules/base.md` > `paths.rules_file`
+
 ## MCP Configuration
 
 AI Factory can configure these MCP servers:
@@ -113,7 +219,7 @@ Or replace the placeholders with actual values directly in the config file:
 
 ## Project Structure
 
-After initialization (example for Claude Code — other agents use their own directory):
+After initialization (example for Claude Code — other agents use their own directory). Paths shown below are the default locations; many AI Factory artifacts can be relocated via `config.yaml`.
 
 ```
 your-project/
@@ -185,7 +291,7 @@ your-project/
 
 ## Reflex Loop Files
 
-`/aif-loop` keeps state lean and resumable between sessions:
+`/aif-loop` keeps state lean and resumable between sessions. Defaults are shown below; the base loop directory can be relocated via `paths.evolution`.
 
 - `.ai-factory/evolution/current.json` — active loop pointer (to current run)
 - `.ai-factory/evolution/<task-alias>/run.json` — current run snapshot (loop execution state)
@@ -196,7 +302,7 @@ For full phase contracts and stop conditions, see [Reflex Loop](loop.md).
 
 ## Evolution Cursor File
 
-`/aif-evolve` uses a lightweight cursor to process patches incrementally:
+`/aif-evolve` uses a lightweight cursor to process patches incrementally. Defaults are shown below; patch and evolution-log directories can be relocated via `paths.patches` and `paths.evolutions`.
 
 - `.ai-factory/evolutions/patch-cursor.json` — last processed patch marker
 - First run (no cursor): evolve reads all patches
@@ -230,6 +336,7 @@ All implementations include verbose, configurable logging:
 
 - [Getting Started](getting-started.md) — installation, supported agents, first project
 - [Development Workflow](workflow.md) — how to use the workflow skills
+- [Config Reference](config-reference.md) — full `config.yaml` schema and skill usage matrix
 - [Reflex Loop](loop.md) — contracts and storage layout for `/aif-loop`
 - [Extensions](extensions.md) — writing and installing extensions
 - [Security](security.md) — how external skills are scanned before use

@@ -10,6 +10,18 @@ Enter explore mode. Think deeply. Visualize freely. Follow the conversation wher
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER implement features or modify project code. If the user asks to implement something, remind them to exit explore mode first (e.g., start with `/aif-plan`). If the user asks to persist exploration context, write/edit **only** `.ai-factory/RESEARCH.md` (this is capturing thinking, not implementing).
 
+---
+
+## Step 0: Load Config
+
+**FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+- **Paths:** `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, `paths.research`, `paths.plan`, `paths.plans`, and `paths.rules`
+- **Language:** `language.ui` for communication
+
+If config.yaml doesn't exist, use defaults:
+- Paths: `.ai-factory/` for all artifacts
+- Language: `en` (English)
+
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ---
@@ -110,11 +122,11 @@ At the start, read these files if present:
 
 - `.ai-factory/DESCRIPTION.md` — project description, tech stack, constraints
 - `.ai-factory/ARCHITECTURE.md` — architecture decisions, folder structure
-- `.ai-factory/RULES.md` — project conventions and rules
-- `.ai-factory/RESEARCH.md` — persisted exploration notes (so you can `/clear` and still keep context)
-- `.ai-factory/PLAN.md` — active fast plan (if any)
-- `.ai-factory/plans/<branch>.md` — active full plans (if any)
-- `.ai-factory/ROADMAP.md` — strategic milestones (if any)
+- the resolved RULES.md path – project conventions and rules
+- the resolved RESEARCH.md path – persisted exploration notes (so you can `/clear` and still keep context)
+- the resolved fast plan path – active fast plan (if any)
+- `<configured plans dir>/<branch>.md` – active full plans (if any)
+- the resolved ROADMAP.md path – strategic milestones (if any)
 
 This tells you:
 - What the project is about
@@ -143,8 +155,8 @@ Think freely. When insights crystallize, you might offer:
 If the user mentions a plan or you detect one is relevant:
 
 1. **Read existing plan for context**
-   - `.ai-factory/PLAN.md` (fast mode)
-   - `.ai-factory/plans/<branch>.md` (full mode)
+   - the resolved fast plan path (fast mode)
+   - `<configured plans dir>/<branch>.md` (full mode)
 
 2. **Reference it naturally in conversation**
    - "Your plan mentions adding Redis, but we just realized SQLite fits better..."
@@ -159,11 +171,11 @@ If the user mentions a plan or you detect one is relevant:
    |--------------|------------------------|------------------|
    | New requirement | `.ai-factory/RESEARCH.md` | `.ai-factory/DESCRIPTION.md` |
    | Architecture decision | `.ai-factory/RESEARCH.md` | `.ai-factory/ARCHITECTURE.md` |
-   | Project convention | `.ai-factory/RESEARCH.md` | `.ai-factory/RULES.md` |
+   | Project convention | `.ai-factory/RESEARCH.md` | `paths.rules_file` |
    | Strategic direction | `.ai-factory/RESEARCH.md` | `.ai-factory/ROADMAP.md` |
    | Assumption invalidated | `.ai-factory/RESEARCH.md` | Relevant file |
    | Exploration context (persisted) | `.ai-factory/RESEARCH.md` | (keep in RESEARCH) |
-   | New task/feature | Run `/aif-plan` | `.ai-factory/PLAN.md` or `.ai-factory/plans/<branch>.md` |
+   | New task/feature | Run `/aif-plan` | `paths.plan` or `paths.plans/<branch-or-slug>.md` |
 
    Example offers:
    - "Want me to save this to `.ai-factory/RESEARCH.md` so you can `/clear` and come back later?"

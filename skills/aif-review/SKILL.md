@@ -10,6 +10,16 @@ disable-model-invocation: false
 
 Perform thorough code reviews focusing on correctness, security, performance, and maintainability.
 
+## Step 0: Load Config
+
+**FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+- **Paths:** `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, and `paths.rules`
+- **Language:** `language.ui` for review summary language
+
+If config.yaml doesn't exist, use defaults:
+- Paths: `.ai-factory/` for all artifacts
+- Language: `en` (English)
+
 ## Behavior
 
 ### Without Arguments (Review Staged Changes)
@@ -96,8 +106,8 @@ git rev-parse --verify <argument> 2>/dev/null
 Before finalizing review findings, run read-only context gates:
 
 - Check `.ai-factory/ARCHITECTURE.md` (if present) for boundary/dependency alignment issues.
-- Check `.ai-factory/RULES.md` (if present) for explicit convention violations.
-- Check `.ai-factory/ROADMAP.md` (if present) for milestone alignment and mention missing linkage for likely `feat`/`fix`/`perf` work.
+- Check the resolved RULES.md artifact (if present) for explicit convention violations.
+- Check the resolved roadmap artifact (if present) for milestone alignment and mention missing linkage for likely `feat`/`fix`/`perf` work.
 
 Gate result severity:
 - `WARN` for non-blocking inconsistencies or missing optional files.
@@ -214,7 +224,7 @@ Review PR from URL.
 Review all commits on the current branch compared to branch `2.x`.
 
 **User:** `/aif-review main`
-Review all commits on the current branch compared to `main`.
+Review all commits on the current branch compared to `main` (or to whatever branch is configured as `git.base_branch` in this repository).
 
 **User:** `/aif-review v1.0.0`
 Review all commits on the current branch compared to tag `v1.0.0`.

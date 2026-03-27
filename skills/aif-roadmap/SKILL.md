@@ -14,7 +14,15 @@ Create and maintain a high-level project roadmap with major milestones.
 
 ### Step 0: Load Project Context
 
-**Read `.ai-factory/DESCRIPTION.md`** if it exists to understand:
+**FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+- **Paths:** `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, `paths.research`, and `paths.rules`
+- **Language:** `language.ui` for prompts, `language.artifacts` for generated content
+
+If config.yaml doesn't exist, use defaults:
+- Paths: `.ai-factory/` for all artifacts
+- Language: `en` (English)
+
+**Read `.ai-factory/DESCRIPTION.md`** (use path from config) if it exists to understand:
 - Tech stack (language, framework, database, ORM)
 - Project architecture and conventions
 - Non-functional requirements
@@ -208,7 +216,7 @@ Completed: X/N
 Next up: **Milestone Name**
 
 To start working on the next milestone:
-/aif-plan <milestone description>  → creates branch + plan
+/aif-plan <milestone description>  → creates a plan and optional branch/worktree flow
 /aif-implement                     → executes the plan
 ```
 

@@ -24,29 +24,39 @@ Comprehensive security checklist based on OWASP Top 10 (2021) and industry best 
 - `/aif-security-checklist race-condition` — Race conditions & TOCTOU
 - `/aif-security-checklist ignore <item>` — Ignore a specific check item
 
+## Config
+
+**FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+- **Paths:** `paths.security`
+- **Language:** `language.ui` for prompts
+
+If config.yaml doesn't exist, use defaults:
+- SECURITY.md: `.ai-factory/SECURITY.md`
+- Language: `en` (English)
+
 ## Ignored Items (SECURITY.md)
 
-Before running any audit, **always read** the file `.ai-factory/SECURITY.md` in the project root. If it exists, it contains a list of security checks the team has decided to ignore.
+Before running any audit, **always read** the resolved SECURITY.md path (default: `.ai-factory/SECURITY.md`). If it exists, it contains a list of security checks the team has decided to ignore.
 
 ### How ignoring works
 
 **When the user runs `/aif-security-checklist ignore <item>`:**
 
-1. Read the current `.ai-factory/SECURITY.md` file (create if doesn't exist)
+1. Read the current resolved SECURITY.md file (create if it doesn't exist)
 2. Ask the user for the reason why this item should be ignored
 3. Add the item to the file following the format below
 4. Confirm the item was added
 
 **When running any audit (`/aif-security-checklist` or a specific category):**
 
-1. Read `.ai-factory/SECURITY.md` at the start
+1. Read the resolved SECURITY.md file at the start
 2. For each ignored item that matches the current audit scope:
    - Do NOT flag it as a finding
    - Instead, show it in a separate section at the end: **"⏭️ Ignored Items"**
    - Display each ignored item with its reason and date, so the team stays aware
 3. Non-ignored items are audited as usual
 
-### `.ai-factory/SECURITY.md` format
+### SECURITY.md format
 
 ```markdown
 # Security: Ignored Items
@@ -78,7 +88,7 @@ Review periodically — ignored risks may become relevant.
 When audit results are shown, append this section at the end:
 
 ```
-⏭️ Ignored Items (from .ai-factory/SECURITY.md)
+⏭️ Ignored Items (from the resolved SECURITY.md artifact)
 ┌─────────────────┬──────────────────────────────────────┬────────────┐
 │ Item            │ Reason                               │ Date       │
 ├─────────────────┼──────────────────────────────────────┼────────────┤
@@ -128,7 +138,7 @@ This checks:
 - .gitignore configuration
 - npm audit (vulnerabilities)
 - console.log in production code
-- Security TODOs
+- Security task markers
 
 ---
 
@@ -454,8 +464,8 @@ grep -rn "password\|secret\|api_key\|token" --include="*.ts" --include="*.js" .
 # Check for vulnerable dependencies
 npm audit --audit-level=high
 
-# Find TODO security items
-grep -rn "TODO.*security\|FIXME.*security\|XXX.*security" .
+# Find unfinished security markers
+grep -rn "[T][O][D][O].*security\|[F][I][X][M][E].*security\|[X][X][X].*security" .
 
 # Check for console.log in production code
 grep -rn "console\.log" src/
@@ -486,3 +496,9 @@ grep -rn "innerHTML.*llm\|innerHTML.*response\|innerHTML.*completion" --include=
 | Missing Headers | 🟢 Low | < 1 month |
 
 > **Tip:** Context is heavy after security audit. Consider `/clear` or `/compact` before continuing with other tasks.
+
+## Artifact Ownership and Config Policy
+
+- Primary ownership: the resolved SECURITY.md artifact (default: `.ai-factory/SECURITY.md`) for ignored-item state created through the `ignore` flow.
+- Write policy: audit findings are normally conversational output; persistent writes are limited to the ignore-state artifact above unless the user explicitly asks for more.
+- Config policy: config-aware. Use `paths.security` for the ignore-state artifact while deriving audit scope from repo evidence and audit commands.

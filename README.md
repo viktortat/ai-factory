@@ -154,6 +154,7 @@ AI Factory can generate and maintain your project docs with a single command:
 | [Security](docs/security.md) | Two-level security scanning for external skills |
 | [Extensions](docs/extensions.md) | Writing and installing extensions — commands, injections, MCP, agents |
 | [Configuration](docs/configuration.md) | `.ai-factory.json`, MCP servers, project structure, best practices |
+| [Config Reference](docs/config-reference.md) | Full `config.yaml` key reference and skill read/write matrix |
 
 ---
 
