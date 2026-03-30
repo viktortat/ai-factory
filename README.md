@@ -180,6 +180,15 @@ AI Factory can generate and maintain your project docs with a single command:
 
 ![happy](https://github.com/ilhm344/ai-factory/blob/2.x/art/aif2.jpg)
 
+## AIF Handoff
+
+Looking for an **Autonomous Kanban board where AI agents plan, implement, and review your tasks**? Check out [aif-handoff](https://github.com/lee-to/aif-handoff) — a visual task management system built on top of AI Factory.
+
+![ui-light](https://github.com/lee-to/aif-handoff/blob/main/art/ui-light.png)
+![ui-dark](https://github.com/lee-to/aif-handoff/blob/main/art/ui-dark.png)
+![ui-light-list](https://github.com/lee-to/aif-handoff/blob/main/art/ui-light-list.png)
+![ui-dark-list](https://github.com/lee-to/aif-handoff/blob/main/art/ui-dark-list.png)
+
 ## Links
 
 - [Official Website](https://aif.cutcode.dev) - AI Factory website
