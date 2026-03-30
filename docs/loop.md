@@ -12,6 +12,8 @@
 
 It is designed for high-signal iteration with minimal storage overhead.
 
+Paths below show the default `.ai-factory/` layout. `config.yaml` can relocate the loop-state root via `paths.evolution`.
+
 Terminology:
 - **loop** = one full execution for a task alias (stored in `run.json`, identified by `run_id`)
 - **iteration** = one cycle inside that loop
@@ -50,10 +52,10 @@ This confirmation is mandatory even when the task prompt already contains criter
 4 files total for loop persistence (1 global pointer + 3 per-loop files). `current.json` exists only while a loop is active:
 
 ```text
-.ai-factory/evolution/current.json
-.ai-factory/evolution/<task-alias>/run.json
-.ai-factory/evolution/<task-alias>/history.jsonl
-.ai-factory/evolution/<task-alias>/artifact.md
+<paths.evolution>/current.json
+<paths.evolution>/<task-alias>/run.json
+<paths.evolution>/<task-alias>/history.jsonl
+<paths.evolution>/<task-alias>/artifact.md
 ```
 
 ### `current.json`
@@ -273,7 +275,7 @@ Hash: {first 8 chars of artifact SHA-256}
 Changed: {list of added/modified sections or "initial generation"}
 Failed: {rule IDs or "none"}
 Warnings: {rule IDs or "none"}
-Artifact: .ai-factory/evolution/<alias>/artifact.md
+Artifact: <paths.evolution>/<alias>/artifact.md
 ```
 
 If `passed=false`, append compact critique (rule ID + 1-line fix per issue).

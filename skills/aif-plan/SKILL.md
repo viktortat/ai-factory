@@ -1,6 +1,6 @@
 ---
 name: aif-plan
-description: Plan implementation for a feature or task. Two modes — fast (no branch) or full (git branch + plan). Use when user says "plan", "new feature", "start feature", "create tasks".
+description: Plan implementation for a feature or task. Two modes — fast (single quick plan) or full (richer plan with optional git branch/worktree flow). Use when user says "plan", "new feature", "start feature", "create tasks".
 argument-hint: "[fast | full] [--parallel | --list | --cleanup <branch>] <description>"
 allowed-tools: Read Write Glob Grep Bash(git *) Bash(cd *) Bash(cp *) Bash(mkdir *) Bash(basename *) TaskCreate TaskUpdate TaskList AskUserQuestion Questions Task
 disable-model-invocation: false
@@ -9,20 +9,30 @@ disable-model-invocation: false
 # Plan - Implementation Planning
 
 Create an implementation plan for a feature or task. Two modes:
-- **Fast** — quick plan, no git branch, saves to `.ai-factory/PLAN.md`
-- **Full** — creates git branch, asks preferences, saves to `.ai-factory/plans/<branch>.md`
+- **Fast** – quick plan, no git branch, saves to the configured fast plan path (default: `.ai-factory/PLAN.md`)
+- **Full** — richer plan, asks preferences, saves to the configured full-plan directory, and optionally creates a git branch/worktree when git is enabled and branch creation is allowed
 
 ## Workflow
 
 ### Step 0: Load Project Context
 
-**FIRST:** Read `.ai-factory/DESCRIPTION.md` if it exists to understand:
+**FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+- **Paths:** `paths.description`, `paths.architecture`, `paths.roadmap`, `paths.research`, `paths.rules_file`, `paths.plan`, `paths.plans`, `paths.patches`, `paths.evolutions`, `paths.specs`, and `paths.rules`
+- **Language:** `language.ui` for AskUserQuestion prompts
+- **Git:** `git.enabled`, `git.base_branch`, `git.create_branches`, and `git.branch_prefix`
+
+If config.yaml doesn't exist, use defaults:
+- Paths: `.ai-factory/` for all artifacts
+- Language: `en` (English)
+- Git: `enabled: true`, `base_branch: main`, `create_branches: true`, `branch_prefix: feature/`
+
+**THEN:** Read `.ai-factory/DESCRIPTION.md` (use path from config) if it exists to understand:
 - Tech stack (language, framework, database, ORM)
 - Project architecture
 - Coding conventions
 - Non-functional requirements
 
-**ALSO:** Read `.ai-factory/ARCHITECTURE.md` if it exists to understand:
+**ALSO:** Read the resolved architecture artifact if it exists (`paths.architecture`, default: `.ai-factory/ARCHITECTURE.md`) to understand:
 - Chosen architecture pattern
 - Folder structure conventions
 - Layer/module boundaries
@@ -32,7 +42,7 @@ Use this context when:
 - Exploring codebase (know what patterns to look for)
 - Writing task descriptions (use correct technologies)
 - Planning file structure (follow project conventions)
-- **Follow architecture guidelines from `.ai-factory/ARCHITECTURE.md` when planning file structure and task organization**
+- **Follow architecture guidelines from the resolved architecture artifact when planning file structure and task organization**
 
 **Read `.ai-factory/skill-context/aif-plan/SKILL.md`** — MANDATORY if the file exists.
 
@@ -54,30 +64,44 @@ codebase conventions, and tech-stack analysis. These rules are tailored to the c
 **Enforcement:** After generating any output artifact, verify it against all skill-context rules.
 If any rule is violated — fix the output before presenting it to the user.
 
-**OPTIONAL (recommended):** Read `.ai-factory/ROADMAP.md` if it exists:
+**OPTIONAL (recommended):** Read the resolved roadmap artifact if it exists (`paths.roadmap`, default: `.ai-factory/ROADMAP.md`):
 - Use it to link this plan to a specific milestone (when applicable)
 - This reduces ambiguity in `/aif-implement` milestone completion and `/aif-verify` roadmap gates
 
-**OPTIONAL (recommended):** Read `.ai-factory/RESEARCH.md` if it exists:
+**OPTIONAL (recommended):** Read the resolved research path if it exists:
 - Treat `## Active Summary (input for /aif-plan)` as an additional requirements source
 - Carry over constraints/decisions into tasks and plan settings
 - Prefer the summary over raw notes; use `## Sessions` only when you need deeper rationale
 - If the user omitted the feature description, use `Active Summary -> Topic:` as the default description
 
-### Step 0.1: Ensure Git Repository
+### Step 0.1: Resolve Git State
 
-```bash
-git rev-parse --is-inside-work-tree 2>/dev/null || git init
-```
+Do **not** auto-run `git init`.
+
+Resolve the current git mode from config first:
+- `git.enabled: true` → git-aware workflow is allowed
+- `git.enabled: false` → no-git workflow only
+- `git.base_branch` → target branch for diffs/merge guidance (default: detected branch or `main`)
+- `git.create_branches: true` → full mode may create a branch/worktree
+- `git.create_branches: false` → full mode still creates a rich plan, but stays on the current branch / repository state
+
+If `git.enabled = false`:
+- Skip all branch/worktree commands
+- Save full-mode plans under `paths.plans/<slug>.md`
+- Treat `--parallel`, `--list`, and `--cleanup` as unavailable
+
+If `git.enabled = true` but the repository is not actually inside a git work tree:
+- Warn the user that git-aware actions are unavailable until the repository is initialized
+- Fall back to the same no-git behavior as above
 
 ### Step 0.2: Parse Arguments & Select Mode
 
 Extract flags and mode from `$ARGUMENTS`:
 
 ```
---parallel  → Enable parallel worktree mode (full mode only)
---list      → Show all active worktrees, then STOP
---cleanup <branch> → Remove worktree and optionally delete branch, then STOP
+--parallel  → Enable parallel worktree mode (full mode only; requires `git.enabled=true` and `git.create_branches=true`)
+--list      → Show all active worktrees, then STOP (git-only)
+--cleanup <branch> → Remove worktree and optionally delete branch, then STOP (git-only)
 fast        → Fast mode (first word)
 full        → Full mode (first word)
 ```
@@ -86,9 +110,11 @@ full        → Full mode (first word)
 - Strip `--parallel`, `--list`, `--cleanup <branch>`, `fast`, `full` from `$ARGUMENTS`
 - Remaining text becomes the description
 - `--list` and `--cleanup` execute immediately and **STOP** (do NOT continue to Step 1+)
+- If `git.enabled = false`, reject `--parallel`, `--list`, and `--cleanup` with a short explanation instead of trying git commands
+- If `--parallel` is set while `git.create_branches = false`, reject it with a short explanation because parallel mode requires branch creation
 
 **If the description is empty:**
-- If `.ai-factory/RESEARCH.md` exists and its `Active Summary` has a non-empty `Topic:`, default the description to that topic (no extra user input required)
+- If the resolved research path exists and its `Active Summary` has a non-empty `Topic:`, default the description to that topic (no extra user input required)
 - Otherwise, ask the user for a short feature description
 
 **If `--list` is present**, jump to [--list Subcommand](#--list-subcommand).
@@ -103,11 +129,11 @@ full        → Full mode (first word)
 AskUserQuestion: Which planning mode?
 
 Options:
-1. Full (Recommended) — creates git branch, asks preferences, full plan
-2. Fast — quick plan, no branch, saves to PLAN.md
+1. Full (Recommended) — richer plan, asks preferences, optional branch/worktree flow when git settings allow it
+2. Fast – quick plan, no branch, saves to the resolved fast plan path
 ```
 
-If the user did not provide a description and `.ai-factory/RESEARCH.md` exists:
+If the user did not provide a description and the resolved research path exists:
 - Mention that you will default the description to the `Active Summary` topic
 - Only ask for `full` vs `fast` (no description prompt needed)
 
@@ -140,10 +166,16 @@ Task(subagent_type: Explore, model: sonnet, prompt:
 - Deep exploration happens later in Step 3
 - If `.ai-factory/DESCRIPTION.md` already provides sufficient context, this step can be skipped
 
-### Step 1.2: Generate Branch Name
+### Step 1.2: Generate Full-Mode Plan Identifier
+
+Generate a reusable slug from the description first. This slug is used for:
+- the git branch name when branch creation is enabled
+- the full-mode plan filename when no branch is created
+
+If `git.enabled = true` and `git.create_branches = true`, generate a branch name:
 
 ```
-Format: <type>/<short-description>
+Format: <configured branch prefix><short-description>
 
 Examples:
 - feature/user-authentication
@@ -153,10 +185,16 @@ Examples:
 ```
 
 **Rules:**
+- Start with the configured `git.branch_prefix` when present (default: `feature/`)
 - Lowercase with hyphens
 - Max 50 characters
 - No special characters except hyphens
 - Descriptive but concise
+
+If `git.enabled = false` or `git.create_branches = false`:
+- Do **not** create a branch name
+- Use the slug to create `<configured plans dir>/<slug>.md`
+- Keep the user on the current branch or current non-git directory state
 
 ### Step 1.3: Ask About Preferences
 
@@ -178,7 +216,7 @@ AskUserQuestion: Before we start, a few questions:
    a. Yes — mandatory docs checkpoint at completion (recommended)
    b. No — warn-only (`WARN [docs]`), no mandatory checkpoint
 
-4. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
+4. Roadmap milestone linkage (only if the resolved roadmap artifact exists):
    a. Link this plan to a milestone
    b. Skip — no linkage (allowed; `/aif-verify --strict` should report WARN, not fail, for missing linkage alone)
 
@@ -196,12 +234,16 @@ Docs policy semantics:
 - `Docs: yes` → `/aif-implement` MUST show a mandatory documentation checkpoint and route docs changes through `/aif-docs`
 - `Docs: no` (or unset) → `/aif-implement` emits `WARN [docs]` and continues without a mandatory docs checkpoint
 
-**If `.ai-factory/ROADMAP.md` exists and the user chose milestone linkage:**
-- Read `.ai-factory/ROADMAP.md` and list candidate milestones (prefer unchecked items)
+**If the resolved roadmap artifact exists and the user chose milestone linkage:**
+- Read the resolved roadmap artifact and list candidate milestones (prefer unchecked items)
 - Ask the user to pick one milestone (or type a custom one)
 - Store the selected milestone name and a 1-sentence rationale for inclusion in the plan file
 
-### Step 1.4: Create Branch or Worktree
+### Step 1.4: Optional Branch / Worktree Setup
+
+**If `git.enabled = false` or `git.create_branches = false`:**
+- Skip all branch/worktree creation
+- Continue with the generated full plan file path under `paths.plans/<slug>.md`
 
 **If `--parallel` flag is set → create worktree:**
 
@@ -209,7 +251,7 @@ Docs policy semantics:
 
 ```bash
 DIRNAME=$(basename "$(pwd)")
-git branch <branch-name> main
+git branch <branch-name> <configured-base-branch>
 git worktree add ../${DIRNAME}-<branch-name-with-hyphens> <branch-name>
 ```
 
@@ -224,41 +266,12 @@ Worktree: ../my-project-feature-user-auth
 
 Copy context files so the worktree has full AI context:
 
-```bash
-WORKTREE="../${DIRNAME}-<branch-name-with-hyphens>"
-
-# Ensure AI Factory directories exist before copy operations
-mkdir -p "${WORKTREE}/.ai-factory"
-mkdir -p "${WORKTREE}/.ai-factory/plans"
-mkdir -p "${WORKTREE}/.ai-factory/patches"
-mkdir -p "${WORKTREE}/.ai-factory/evolutions"
-
-# Project context
-cp .ai-factory/DESCRIPTION.md "${WORKTREE}/.ai-factory/DESCRIPTION.md" 2>/dev/null
-cp .ai-factory/ARCHITECTURE.md "${WORKTREE}/.ai-factory/ARCHITECTURE.md" 2>/dev/null
-cp .ai-factory/RESEARCH.md "${WORKTREE}/.ai-factory/RESEARCH.md" 2>/dev/null
-
-# Skill-context (primary learning context)
-cp -r .ai-factory/skill-context/ "${WORKTREE}/.ai-factory/skill-context/" 2>/dev/null
-
-# Note: do not copy patch-cursor.json into a truncated patch set.
-# The parallel worktree copies only a limited number of patches for fallback context.
-# Copying the evolve cursor without the full patch history can cause /aif-evolve to skip patches
-# or trigger a partial rescan.
-
-# Limited patch fallback: copy only recent patches (latest 10 by filename)
-for patch in $(ls -1 .ai-factory/patches/*.md 2>/dev/null | sort | tail -n 10); do
-  cp "${patch}" "${WORKTREE}/.ai-factory/patches/"
-done
-
-# Agent skills + settings
-cp -r .claude/ "${WORKTREE}/.claude/" 2>/dev/null
-
-# CLAUDE.md only if untracked
-if [ -f CLAUDE.md ] && ! git ls-files --error-unmatch CLAUDE.md &>/dev/null; then
-  cp CLAUDE.md "${WORKTREE}/CLAUDE.md"
-fi
-```
+- Create the parent directories for the resolved DESCRIPTION, ARCHITECTURE, RESEARCH, plan, patch, and evolution paths inside the worktree.
+- Copy the resolved DESCRIPTION, ARCHITECTURE, and RESEARCH artifacts into the same configured relative locations inside the worktree.
+- Copy `.ai-factory/skill-context/` as-is into the worktree.
+- Copy only the latest 10 patch files from the resolved `paths.patches` directory into the same configured relative path inside the worktree.
+- Do **not** copy `patch-cursor.json` when you copied only a truncated patch set; that cursor is valid only with the full patch history.
+- Copy agent settings (for example `.claude/`) and untracked `CLAUDE.md` when present.
 
 Create changes directory and switch:
 
@@ -284,8 +297,8 @@ Continue to Step 2.
 **If no `--parallel` → create branch normally:**
 
 ```bash
-git checkout main
-git pull origin main
+git checkout <configured-base-branch>
+git pull origin <configured-base-branch>
 git checkout -b <branch-name>
 ```
 
@@ -310,12 +323,12 @@ AskUserQuestion: Before we start:
 
 2. Any specific requirements or constraints?
 
-3. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
+3. Roadmap milestone linkage (only if the resolved roadmap artifact exists):
    a. Link this plan to a milestone
    b. Skip — no linkage (allowed; `/aif-verify --strict` should report WARN, not fail, for missing linkage alone)
 ```
 
-**Plan file:** Always `.ai-factory/PLAN.md` (no branch, no branch-named file).
+**Plan file:** Always the resolved `paths.plan` file (default: `.ai-factory/PLAN.md`).
 
 ---
 
@@ -389,28 +402,28 @@ Use `TaskUpdate` to set `blockedBy` relationships:
 ### Step 5: Save Plan to File
 
 **Determine plan file path:**
-- **Fast mode** → `.ai-factory/PLAN.md`
-- **Full mode** → `.ai-factory/plans/<branch-name>.md` (replace `/` with `-`)
+- **Fast mode** → the resolved `paths.plan`
+- **Full mode** → `<configured plans dir>/<branch-or-slug>.md`
 
 **Before saving, ensure directory exists:**
 ```bash
-mkdir -p .ai-factory/plans  # only when saving to branch-named plan files
+mkdir -p <configured plans dir>
 ```
 
 **Plan file must include:**
 - Title with feature name
 - Branch and creation date
 - `Settings` section (Testing, Logging, Docs)
-- `Roadmap Linkage` section (optional, only if `.ai-factory/ROADMAP.md` exists)
-- `Research Context` section (optional, if `.ai-factory/RESEARCH.md` exists)
+- `Roadmap Linkage` section (optional, only if the resolved roadmap artifact exists)
+- `Research Context` section (optional, if the resolved research path exists)
 - `Tasks` section grouped by phases
 - `Commit Plan` section when there are 5+ tasks
 
-If `.ai-factory/ROADMAP.md` exists:
+If the resolved roadmap artifact exists:
 - If the user linked a milestone, write `## Roadmap Linkage` with `Milestone: "..."` and `Rationale: ...`
 - If the user skipped linkage, write `## Roadmap Linkage` with `Milestone: "none"` and `Rationale: "Skipped by user"`
 
-If `.ai-factory/RESEARCH.md` exists:
+If the resolved research path exists:
 - Include `## Research Context` by copying only the `Active Summary` (do not paste full `Sessions`)
 - Keep it compact; it should be readable as a one-screen requirements snapshot
 
@@ -430,7 +443,7 @@ Use the canonical template in `references/TASK-FORMAT.md` (Plan File Template).
 /aif-implement
 
 CONTEXT FROM /aif-plan:
-- Plan file: .ai-factory/plans/<branch-name>.md
+- Plan file: <configured plans dir>/<branch-or-slug>.md
 - Testing: yes/no
 - Logging: verbose/standard/minimal
 - Docs: yes/no  # yes => mandatory docs checkpoint, no => warn-only
@@ -440,7 +453,7 @@ CONTEXT FROM /aif-plan:
 
 ```
 Plan created with [N] tasks.
-Plan file: .ai-factory/plans/<branch-name>.md
+Plan file: <configured plans dir>/<branch-or-slug>.md
 
 To start implementation, run:
 /aif-implement
@@ -453,7 +466,7 @@ To view tasks:
 
 ```
 Plan created with [N] tasks.
-Plan file: .ai-factory/PLAN.md
+Plan file: <resolved fast plan path>
 
 To start implementation, run:
 /aif-implement
@@ -477,14 +490,14 @@ git worktree list
 ```
 
 For each worktree path:
-1. Check if `<worktree>/.ai-factory/plans/` contains any plan files
+1. Check whether the resolved plans directory exists under that worktree (`<worktree>/<resolved paths.plans>`, default: `<worktree>/.ai-factory/plans/`) and contains any plan files
 2. Show name and whether it looks complete (has tasks) or is still in progress
 
 **Output format:**
 ```
 Active worktrees:
 
-  /path/to/my-project          (main)        <- you are here
+  /path/to/my-project          (<configured-base-branch>)        <- you are here
   /path/to/my-project-feature-user-auth  (feature/user-auth)  -> Plan: feature-user-auth.md
   /path/to/my-project-fix-cart-bug       (fix/cart-bug)        -> No plan yet
 ```
@@ -507,7 +520,7 @@ If `git branch -d` fails because the branch is unmerged:
 ```
 Branch <branch> has unmerged changes.
 To force-delete: git branch -D <branch>
-To merge first: git checkout main && git merge <branch>
+To merge first: git checkout <configured-base-branch> && git merge <branch>
 ```
 
 If the worktree path doesn't exist, check `git worktree list` and suggest the correct path.
@@ -537,18 +550,18 @@ Use canonical examples in `references/TASK-FORMAT.md`:
 5. **Dependencies matter** — Order tasks so they can be done sequentially
 6. **Include file paths** — Help implementer know where to work
 7. **Commit checkpoints for large plans** — 5+ tasks need commit plan with checkpoints every 3-5 tasks
-8. **Plan file location** — Fast mode: `.ai-factory/PLAN.md`. Full mode: `.ai-factory/plans/<branch-name>.md`
-9. **Ownership boundary** — This command owns plan files only (`.ai-factory/PLAN.md`, `.ai-factory/plans/<branch>.md`). Use owner commands (`/aif-roadmap`, `/aif-rules`, `/aif-explore`) for their artifacts.
-10. **Roadmap linkage (when available)** — If `.ai-factory/ROADMAP.md` exists, include a `## Roadmap Linkage` section in the plan (or explicitly state it was skipped).
+8. **Plan file location** – Fast mode: `paths.plan`. Full mode: `paths.plans/<branch-or-slug>.md`
+9. **Ownership boundary** – This command owns plan files only (the resolved fast plan path and files under `paths.plans`). Use owner commands (`/aif-roadmap`, `/aif-rules`, `/aif-explore`) for their artifacts.
+10. **Roadmap linkage (when available)** — If the resolved roadmap artifact exists, include a `## Roadmap Linkage` section in the plan (or explicitly state it was skipped).
 
 ## Plan File Handling
 
-**Fast mode (`.ai-factory/PLAN.md`)**
+**Fast mode (`paths.plan`, default: `.ai-factory/PLAN.md`)**
 - Temporary plan for quick work
 - `/aif-implement` may offer deletion after completion
 
-**Full mode (`.ai-factory/plans/<branch>.md`)**
-- Branch-scoped, long-lived plan for feature delivery
-- Used to resume work from current branch context
+**Full mode (`paths.plans/<branch-or-slug>.md`)**
+- Long-lived plan for feature delivery
+- Branch-scoped when a branch is created; slug-scoped when full mode runs without branch creation
 
 For concrete end-to-end flows (fast/full/full+parallel/interactive), read `references/EXAMPLES.md` (Flow Scenarios).

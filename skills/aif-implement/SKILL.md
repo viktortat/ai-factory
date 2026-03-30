@@ -17,13 +17,20 @@ Execute tasks from the plan, track progress, and enable session continuation.
 **FIRST:** Determine what state we're in:
 
 ```
-1. Parse arguments:
+1. Read `.ai-factory/config.yaml` if it exists to resolve:
+   - `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, `paths.research`
+   - `paths.plan`, `paths.plans`, `paths.fix_plan`, `paths.patches`
+   - `paths.rules`
+   - `language.ui`, `language.artifacts`
+   - `git.enabled`, `git.base_branch`, `git.create_branches`
+   - `rules.base` plus any named `rules.<area>` entries
+2. Parse arguments:
    - --list → list available plans only (no implementation; STOP)
    - @<path> → explicit plan file override (highest priority)
    - <number> → start from specific task
    - status → status-only mode
-2. Check for uncommitted changes (git status)
-3. Check current branch
+3. If `git.enabled = true`, check for uncommitted changes (`git status`)
+4. If `git.enabled = true`, check current branch
 ```
 
 ### Step 0.list: List Available Plans (`--list`)
@@ -32,12 +39,13 @@ If `$ARGUMENTS` contains `--list`, run read-only plan discovery and stop.
 
 ```
 1. Get current branch:
-   git branch --show-current
-2. Convert branch to filename: replace "/" with "-", add ".md"
+   git branch --show-current (git mode only)
+2. Convert branch to filename: replace "/" with "-", add ".md" (git mode only)
 3. Check existence of:
-   - .ai-factory/plans/<branch-name>.md
-   - .ai-factory/PLAN.md
-   - .ai-factory/FIX_PLAN.md
+   - <configured plans dir>/<branch-name>.md (git mode only)
+   - if git mode is off or branch creation is disabled: any `*.md` full-mode plan in `<configured plans dir>/`
+   - <resolved fast plan path>
+   - <resolved fix plan path>
 4. Print plan availability summary and usage hints
 5. STOP.
 ```
@@ -54,6 +62,8 @@ For detailed output format and examples, see:
 
 If the user is resuming **the next day**, says the session was **abandoned**, or you suspect context was lost (e.g. after `/clear`), rebuild local context from the repo **before** continuing tasks:
 
+If `git.enabled = true`:
+
 ```
 1. git status
 2. git branch --show-current
@@ -62,8 +72,14 @@ If the user is resuming **the next day**, says the session was **abandoned**, or
 5. (optional) git stash list
 ```
 
+If `git.enabled = false`, skip git recovery commands and reconcile only from the resolved plan/fix-plan paths plus the working tree state.
+
 Then reconcile plan/task state:
-- Ensure the current plan file matches the current branch (`@plan-file` override wins; otherwise branch-named plan takes priority over `PLAN.md`).
+- Ensure the current plan file matches the current branch when git branch plans are in use (`@plan-file` override wins; otherwise branch-named plan takes priority over the resolved fast plan).
+- If `git.enabled = false` or full plans were created without a branch, prefer:
+  - explicit `@plan-file`,
+  - then the only `*.md` file in the configured plans dir,
+  - then the resolved fast plan path.
 - Compare `TaskList` statuses vs plan checkboxes.
   - If code changes for a task appear already implemented but the task is not marked completed, verify quickly and then `TaskUpdate(..., status: "completed")` and update the plan checkbox.
   - If a task is marked completed but the corresponding code is missing (rebase/reset happened), mark it back to pending and discuss with the user.
@@ -83,12 +99,12 @@ Options:
 - No → `git stash push -m "aif-implement: stash before plan execution"`, then continue
 - Cancel → inform the user: "Implementation cancelled." → **STOP**
 
-**If NO plan file exists but `.ai-factory/FIX_PLAN.md` exists:**
+**If NO plan file exists but the resolved fix plan exists:**
 
 A fix plan was created by `/aif-fix` in plan mode. Redirect to fix workflow:
 
 ```
-Found a fix plan (.ai-factory/FIX_PLAN.md).
+Found a fix plan at the resolved fix plan path.
 
 This plan was created by /aif-fix and should be executed through the fix workflow
 (it creates a patch and handles cleanup automatically).
@@ -96,10 +112,10 @@ This plan was created by /aif-fix and should be executed through the fix workflo
 Running /aif-fix to execute the plan...
 ```
 
-→ **Invoke `/aif-fix`** (without arguments — it will detect FIX_PLAN.md and execute it).
+→ **Invoke `/aif-fix`** (without arguments – it will detect the resolved fix plan and execute it).
 → **STOP** — do not continue with implement workflow.
 
-**If NO plan file exists AND no FIX_PLAN.md (all tasks completed or fresh start):**
+**If NO plan file exists AND no resolved fix plan (all tasks completed or fresh start):**
 
 ```
 AskUserQuestion: No active plan found. Current branch: <current-branch>.
@@ -107,36 +123,52 @@ What would you like to do?
 
 Options:
 1. Start new feature from current branch
-2. Return to main/master and start new feature
+2. Return to configured base branch and start new feature
 3. Create quick task plan (no branch)
 4. Nothing, just checking status
 ```
 
 **Based on choice:**
 - New feature from current → `/aif-plan full <description>`
-- Return to main → `git checkout main`, then `git pull` → `/aif-plan full <description>`
+- Return to base branch → `git checkout <configured-base-branch>`, then `git pull origin <configured-base-branch>` → `/aif-plan full <description>` (git mode only)
 - Quick task → `/aif-plan fast <description>`
 - Nothing, just checking status → display branch info and recent commits summary → **STOP**
+
+If `git.enabled = false`, replace option 2 with:
+- `2. Create rich full plan without branch creation`
+- Route it to `/aif-plan full <description>` without any git commands
 
 **If plan file exists → continue to Step 0.1**
 
 ### Step 0.1: Load Project Context & Past Experience
 
-**Read `.ai-factory/DESCRIPTION.md`** if it exists to understand:
+Use the resolved config from Step 0:
+- **Paths:** description, architecture, RULES.md, roadmap, research, plan files, patches, and rules dir
+- **Language:** `language.ui` for prompts, `language.artifacts` for generated content
+- **Rules hierarchy:** the resolved RULES.md file + `rules.base` + named `rules.<area>` entries
+
+**Read `.ai-factory/DESCRIPTION.md`** (use path from config) if it exists to understand:
 - Tech stack (language, framework, database, ORM)
 - Project architecture and conventions
 - Non-functional requirements
 
-**Read `.ai-factory/ARCHITECTURE.md`** if it exists to understand:
+**Read the resolved architecture artifact** if it exists (`paths.architecture`, default: `.ai-factory/ARCHITECTURE.md`) to understand:
 - Chosen architecture pattern and folder structure
 - Dependency rules (what depends on what)
 - Layer/module boundaries and communication patterns
 - Follow these conventions when implementing — file placement, imports, module boundaries
 
-**Read `.ai-factory/RULES.md`** if it exists:
+**Read the resolved RULES.md path** if it exists:
 - These are project-specific rules and conventions added by the user
 - **ALWAYS follow these rules** when implementing — they override general patterns
 - Rules are short, actionable — treat each as a hard requirement
+
+**Read rules hierarchy** (paths from config):
+1. **RULES.md** – axioms (universal project rules)
+2. **rules/base.md** — project-specific base conventions (naming, structure, patterns)
+3. **rules.<area>** — area-specific rule entries resolved from config (for example `rules.api`, `rules.frontend`)
+
+Load all available rule files and merge them. More specific rules override general ones.
 
 **Read `.ai-factory/skill-context/aif-implement/SKILL.md`** — MANDATORY if the file exists.
 
@@ -160,8 +192,8 @@ If any rule is violated — fix the output before presenting it to the user.
 
 **Patch fallback (limited, only when skill-context is missing):**
 
-- If `.ai-factory/skill-context/aif-implement/SKILL.md` does not exist and `.ai-factory/patches/` exists:
-  - Use `Glob` to find `*.md` files in `.ai-factory/patches/`
+- If `.ai-factory/skill-context/aif-implement/SKILL.md` does not exist and the resolved patches dir exists:
+  - Use `Glob` to find `*.md` files in the resolved patches dir
   - Sort patch filenames ascending (lexical), then select the last **10** (or fewer if less exist)
   - Read those selected patch files only
   - Prioritize **Root Cause** and **Prevention** sections
@@ -186,10 +218,10 @@ Use this explicit plan file and skip automatic plan discovery.
 3. If file does not exist:
    "Plan file not found: <path>
     Provide an existing markdown plan file, for example:
-    - /aif-implement @.ai-factory/PLAN.md
+    - /aif-implement @<resolved fast plan path>
     - /aif-implement @.ai-factory/plans/feature-user-auth.md"
    → STOP
-4. If file is .ai-factory/FIX_PLAN.md:
+4. If file is the resolved fix plan path:
    → invoke /aif-fix (ownership + cleanup workflow) and STOP
 5. Otherwise use this file as the active plan
 ```
@@ -204,17 +236,22 @@ Then continue with normal execution using the selected plan file.
 1. Check current git branch:
    git branch --show-current
    → Convert branch name to filename: replace "/" with "-", add ".md"
-   → Look for .ai-factory/plans/<branch-name>.md (e.g., feature/user-auth → .ai-factory/plans/feature-user-auth.md)
-2. No branch-based plan → Check .ai-factory/PLAN.md
-3. No branch-based plan and no .ai-factory/PLAN.md → Check .ai-factory/FIX_PLAN.md
+   → Look for <configured plans dir>/<branch-name>.md
+2. If git mode is off or branch-based plan is missing:
+   - Check whether the configured plans dir contains exactly one `*.md` plan file created by `/aif-plan full` without a branch
+   - If exactly one exists → use it
+   - If multiple exist → ask the user to choose or use `@<path>`
+3. No full-mode plan → Check the resolved fast plan path
+4. No full-mode plan and no resolved fast plan → Check the resolved fix plan path
    → If exists: invoke /aif-fix (handles its own workflow with patches) and STOP
 ```
 
 **Priority:**
 1. `@<path>` argument - explicit user-selected plan file
 2. Branch-named file (from `/aif-plan full`) - if it matches current branch
-3. `.ai-factory/PLAN.md` (from `/aif-plan fast`) - fallback when no branch-based plan exists
-4. `.ai-factory/FIX_PLAN.md` - redirect to `/aif-fix` (from `/aif-fix` plan mode)
+3. Single named full-plan file in `paths.plans` (from `/aif-plan full` without branch creation)
+4. `paths.plan` (from `/aif-plan fast`) - fallback when no full plan exists
+5. `paths.fix_plan` - redirect to `/aif-fix` (from `/aif-fix` plan mode)
 
 **Read the plan file** to understand:
 - Context and settings (testing, logging preferences)
@@ -293,7 +330,7 @@ TaskUpdate(taskId, status: "completed")
 - Even if deletion will be offered later
 - Plan file is the source of truth for progress
 
-**3.7: Update .ai-factory/DESCRIPTION.md if needed**
+**3.7: Update the resolved description artifact if needed**
 
 If during implementation:
 - New dependency/library was added
@@ -301,14 +338,14 @@ If during implementation:
 - New integration added (e.g., Stripe, SendGrid)
 - Architecture decision was made
 
-→ Update `.ai-factory/DESCRIPTION.md` to reflect the change:
+→ Update the resolved description artifact (`paths.description`, default: `.ai-factory/DESCRIPTION.md`) to reflect the change:
 
 ```markdown
 ## Tech Stack
 - **Cache:** Redis (added for session storage)
 ```
 
-This keeps .ai-factory/DESCRIPTION.md as the source of truth.
+This keeps the resolved description artifact as the source of truth.
 
 **3.7.1: Update AGENTS.md and ARCHITECTURE.md if project structure changed**
 
@@ -319,7 +356,7 @@ If during implementation:
 
 → Update `AGENTS.md` — refresh the "Project Structure" tree and "Key Entry Points" table to reflect new directories/files.
 
-→ Update `.ai-factory/ARCHITECTURE.md` — if new modules or layers were added that should be documented in the folder structure section.
+→ Update the resolved architecture artifact — if new modules or layers were added that should be documented in the folder structure section.
 
 **Only update if structure actually changed** — don't rewrite on every task. Check if new directories were created that aren't in the current structure map.
 
@@ -388,7 +425,7 @@ What's next?
 
 **Check ROADMAP.md progress:**
 
-If `.ai-factory/ROADMAP.md` exists:
+If the resolved roadmap artifact exists:
 1. Read it
 1.1. If the plan file includes `## Roadmap Linkage` with a non-`none` milestone, prefer that milestone for completion marking
 2. Check if the completed work corresponds to any unchecked milestone
@@ -400,11 +437,11 @@ If `.ai-factory/ROADMAP.md` exists:
 Only do this step when there is something concrete to capture.
 
 **DESCRIPTION.md (allowed in this command):**
-- If this plan introduced new dependencies/integrations or changed the stack, update `.ai-factory/DESCRIPTION.md` with factual deltas only.
+- If this plan introduced new dependencies/integrations or changed the stack, update the resolved description artifact with factual deltas only.
 - Do not rewrite unrelated sections.
 
 **ARCHITECTURE.md + AGENTS.md (allowed in this command):**
-- If new modules/layers/folders were added (or dependency rules changed), update `.ai-factory/ARCHITECTURE.md` to reflect the new structure and constraints.
+- If new modules/layers/folders were added (or dependency rules changed), update the resolved architecture artifact to reflect the new structure and constraints.
 - If you maintain `AGENTS.md` structure maps or entry points, refresh them only when they are now incorrect.
 
 **ROADMAP.md (allowed, limited):**
@@ -414,14 +451,14 @@ Only do this step when there is something concrete to capture.
   - or `/aif-roadmap <short update request>`
 
 **RULES.md (NOT allowed in this command):**
-- Never edit `.ai-factory/RULES.md` from `/aif-implement`.
+- Never edit the resolved `paths.rules_file` artifact from `/aif-implement`.
 - If you discovered repeatable conventions/pitfalls during implementation, propose up to 3 candidate rules and ask the user to add them via `/aif-rules`.
 - Do not invoke `/aif-rules` automatically (it is user-invoked).
 
 If candidate rules exist:
 
 ```
-AskUserQuestion: Capture new project rules in `.ai-factory/RULES.md`?
+AskUserQuestion: Capture new project rules in the resolved RULES.md artifact?
 
 Options:
 1. Yes — output `/aif-rules ...` commands (recommended)
@@ -460,9 +497,9 @@ If plan setting is `Docs: no` or setting is unset:
 
 **Handle plan file after completion:**
 
-- **If `.ai-factory/PLAN.md`** (from `/aif-plan fast`):
+- **If the resolved fast plan path** (from `/aif-plan fast`):
   ```
-  AskUserQuestion: Would you like to delete .ai-factory/PLAN.md? (It's no longer needed)
+  AskUserQuestion: Would you like to delete the resolved fast plan file? (It's no longer needed)
 
   Options:
   1. Yes, delete it
@@ -472,11 +509,11 @@ If plan setting is `Docs: no` or setting is unset:
   **Based on choice:**
   - "Yes, delete it" → delete the file:
     ```bash
-    rm .ai-factory/PLAN.md
+    rm <resolved fast plan path>
     ```
   - "No, keep it" → leave the file as is, continue to the next step
 
-- **If branch-named file** (e.g., `.ai-factory/plans/feature-user-auth.md`):
+- **If branch-named file** (e.g., `<configured plans dir>/feature-user-auth.md`):
   - Keep it - documents what was done
   - User can delete before merging if desired
 
@@ -497,7 +534,7 @@ You're working in a parallel worktree.
   Worktree:  <current-directory>
   Main repo: <main-repo-path>
 
-AskUserQuestion: Would you like to merge this branch into main and clean up?
+AskUserQuestion: Would you like to merge this branch into the configured base branch and clean up?
 
 Options:
 1. Yes, merge and clean up (recommended)
@@ -518,21 +555,21 @@ Options:
 
 1. **Ensure everything is committed** — check `git status`. If uncommitted changes exist, suggest `/aif-commit` first and wait.
 
-2. **Get main repo path:**
+2. **Get repository root path:**
    ```bash
    MAIN_REPO=$(git rev-parse --git-common-dir | sed 's|/\.git$||')
    BRANCH=$(git branch --show-current)
    ```
 
-3. **Switch to main repo:**
+3. **Switch to the repository root:**
    ```bash
    cd "${MAIN_REPO}"
    ```
 
 4. **Merge the branch:**
    ```bash
-   git checkout main
-   git pull origin main
+   git checkout <configured-base-branch>
+   git pull origin <configured-base-branch>
    git merge "${BRANCH}"
    ```
 
@@ -555,10 +592,10 @@ Options:
    ```
    ✅ Merged and cleaned up!
 
-     Branch <branch> merged into main.
+     Branch <branch> merged into <configured-base-branch>.
      Worktree removed.
 
-   You're now in: <main-repo-path> (main)
+   You're now in: <main-repo-path> (<configured-base-branch>)
    ```
 
 → **STOP** — worktree merged and removed, no further steps needed.
@@ -595,7 +632,7 @@ Continues from next incomplete task.
 ```
 /aif-implement --list
 ```
-Lists `.ai-factory/PLAN.md`, `.ai-factory/FIX_PLAN.md`, and current-branch `.ai-factory/plans/<branch>.md` (if present), then exits without implementation.
+Lists the resolved fast plan path, resolved fix plan path, and current-branch `<configured plans dir>/<branch>.md` (if present), then exits without implementation.
 
 ### Use Explicit Plan File
 ```
@@ -635,13 +672,13 @@ Shows progress without executing.
 - ❌ Add tasks not in the plan
 - ❌ Skip tasks without user permission
 - ❌ Mark incomplete tasks as done
-- ❌ Violate `.ai-factory/ARCHITECTURE.md` conventions for file placement and module boundaries
+- ❌ Violate the resolved architecture artifact conventions for file placement and module boundaries
 
 ## Artifact Ownership Boundaries
 
 - Primary ownership in this command: task execution state and plan progress checkboxes.
-- Allowed context artifact updates: `.ai-factory/DESCRIPTION.md`, `.ai-factory/ARCHITECTURE.md`, and roadmap milestone completion in `.ai-factory/ROADMAP.md` when implementation evidence justifies it.
-- Read-only context in this command by default: `.ai-factory/RULES.md`, `.ai-factory/RESEARCH.md`.
+- Allowed context artifact updates: the resolved description artifact, the resolved architecture artifact, and roadmap milestone completion in the resolved roadmap artifact when implementation evidence justifies it.
+- Read-only context in this command by default: the resolved `paths.rules_file` and `paths.research` artifacts.
 - Context-gate findings should be communicated as `WARN`/`ERROR` outputs only; this does not replace the required verbose implementation logging rules below.
 
 For progress display format, blocker handling, session continuity examples, and full flow examples → see `references/IMPLEMENTATION-GUIDE.md`

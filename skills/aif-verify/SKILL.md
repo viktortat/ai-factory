@@ -23,7 +23,25 @@ Verify that the completed implementation matches the plan, nothing was missed, a
 
 ## Step 0: Load Context
 
-### 0.0 Load Ownership and Gate Contract
+### 0.0 Load config.yaml
+
+**FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+- **Paths:** `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, `paths.plan`, `paths.plans`, `paths.fix_plan`, `paths.specs`, and `paths.rules`
+- **verify_mode:** default verification strictness (`strict` | `normal` | `lenient`)
+- **Git:** `git.enabled`, `git.base_branch`, `git.create_branches`
+- **Rules hierarchy:** the resolved RULES.md path + `rules.base` + named `rules.<area>` entries
+
+**verify_mode priority:**
+1. `--strict` CLI flag → always use `strict`
+2. config.yaml `workflow.verify_mode` → use configured value
+3. Default → `normal`
+
+If config.yaml doesn't exist, use defaults:
+- Paths: `.ai-factory/` for all artifacts
+- verify_mode: `normal`
+- Rules: RULES.md only
+
+### 0.1 Load Ownership and Gate Contract
 
 - Read `references/CONTEXT-GATES-AND-OWNERSHIP.md` first.
 - Treat it as the canonical source for:
@@ -32,15 +50,20 @@ Verify that the completed implementation matches the plan, nothing was missed, a
   - normal vs strict context-gate thresholds.
 - If this contract conflicts with older examples in this file, follow the contract.
 
-### 0.1 Find Plan File
+### 0.2 Find Plan File
 
 Same logic as `/aif-implement`:
 
 ```
-1. .ai-factory/PLAN.md exists? → Use it
-2. No PLAN.md → Check current git branch:
+1. Check current git branch:
    git branch --show-current
-   → Look for .ai-factory/plans/<branch-name>.md
+   → Look for <configured plans dir>/<branch-name>.md
+2. If the branch-based plan is missing or git mode is off:
+   → Check whether the configured plans dir contains exactly one `*.md` full-mode plan
+   → If exactly one exists, use it
+   → If multiple exist, ask the user to choose or use `@<path>` via `/aif-implement`
+3. No full-mode plan → Check the resolved fast plan path
+4. No full-mode plan and no resolved fast plan → fall back to standalone verification choices
 ```
 
 **If no plan file found:**
@@ -49,7 +72,7 @@ AskUserQuestion: No plan file found. What should I verify?
 
 Options:
 1. Verify last commit — Check the most recent commit for completeness
-2. Verify branch diff — Compare current branch against main
+2. Verify branch diff — Compare current branch against the configured base branch
 3. Cancel
 ```
 
@@ -57,10 +80,13 @@ Options:
 
 - Read the plan file to understand what was supposed to be implemented
 - `TaskList` → get all tasks and their statuses
-- Read `.ai-factory/DESCRIPTION.md` for project context (tech stack, conventions)
-- Read `.ai-factory/ARCHITECTURE.md` for dependency and boundary rules (if present)
-- Read `.ai-factory/RULES.md` for project-specific conventions (if present)
-- Read `.ai-factory/ROADMAP.md` for milestone alignment checks (if present)
+- Read `.ai-factory/DESCRIPTION.md` (use path from config) for project context (tech stack, conventions)
+- Read `.ai-factory/ARCHITECTURE.md` (use path from config) for dependency and boundary rules (if present)
+- Read **rules hierarchy** (use paths from config):
+  1. **RULES.md** — axioms (universal project rules)
+  2. **rules/base.md** — project-specific base conventions
+  3. **rules.<area>** — area-specific rule entries resolved from config (for example `rules.api`, `rules.frontend`)
+- Read `.ai-factory/ROADMAP.md` (use path from config) for milestone alignment checks (if present)
 
 **Read `.ai-factory/skill-context/aif-verify/SKILL.md`** — MANDATORY if the file exists.
 
@@ -86,10 +112,14 @@ If any rule is violated — fix the output before presenting it to the user.
 
 ```bash
 # All files changed during this feature/plan
-git diff --name-only main...HEAD
-# Or if on main, check recent commits
+git diff --name-only <configured-base-branch>...HEAD
+# Or if on the base branch / in no-git mode, check recent commits
 git diff --name-only HEAD~$(number_of_tasks)..HEAD
 ```
+
+If `git.enabled = false`, skip branch diffing entirely and gather changed files from:
+- the working tree (if uncommitted changes exist), or
+- the recent commit window that corresponds to the implemented tasks.
 
 Store as `CHANGED_FILES`.
 
@@ -211,7 +241,7 @@ Check for discrepancies between what the plan says and what was built:
 Search for things that should have been cleaned up:
 
 ```
-Grep in CHANGED_FILES: TODO|FIXME|HACK|XXX|TEMP|PLACEHOLDER|console\.log\(.*debug|print\(.*debug
+Grep in CHANGED_FILES: [T][O][D][O]|[F][I][X][M][E]|HACK|[X][X][X]|TEMP|PLACEHOLDER|console\.log\(.*debug|print\(.*debug
 ```
 
 Report any found — they might be intentional, but flag them.
@@ -322,7 +352,7 @@ Options:
 ### Issues Found
 1. **Task #3 incomplete** — Password reset endpoint created but email sending not implemented (SendGrid integration missing)
 2. **Task #8 not done** — API documentation not updated despite plan requirement
-3. **2 TODOs found** — src/services/auth.ts:45, src/middleware/rate-limit.ts:12
+3. **2 unfinished markers found** — src/services/auth.ts:45, src/middleware/rate-limit.ts:12
 4. **New env var undocumented** — `SENDGRID_API_KEY` referenced but not in .env.example
 
 ### No Issues
@@ -355,11 +385,11 @@ Options:
 **If "Fix now" or "Fix critical only":**
 - First suggest using `/aif-fix` and pass a concise issue summary as argument
 - Example:
-  - `/aif-fix complete Task #3 password reset email flow, implement Task #8 docs update, remove TODOs in src/services/auth.ts and src/middleware/rate-limit.ts, document SENDGRID_API_KEY in .env.example`
+  - `/aif-fix complete Task #3 password reset email flow, implement Task #8 docs update, remove unfinished markers in src/services/auth.ts and src/middleware/rate-limit.ts, document SENDGRID_API_KEY in .env.example`
 - If user agrees, proceed via `/aif-fix`
 - If user declines `/aif-fix`, continue with direct implementation in this session
 - For each incomplete/partial task — implement the missing pieces (follow the same implementation rules as `/aif-implement`)
-- For TODOs/debug artifacts — clean them up
+- For unfinished markers/debug artifacts — clean them up
 - For undocumented config — update `.env.example` and docs
 - After fixing, re-run the relevant verification checks to confirm
 
@@ -424,7 +454,7 @@ When invoked with `--strict`:
 - **Build must pass** — fail verification if build fails
 - **Tests must pass** — fail verification if any test fails (tests are required in strict mode)
 - **Lint must pass** — zero warnings, zero errors
-- **No TODOs/FIXMEs** in changed files
+- **No unfinished task markers** in changed files
 - **No undocumented environment variables**
 - **Architecture gate must pass** — fail on clear boundary/dependency violations
 - **Rules gate must pass** — fail on clear rule violations
@@ -432,7 +462,7 @@ When invoked with `--strict`:
 - Missing milestone linkage for `feat`/`fix`/`perf` is a warning even in strict mode
 - Do not fail strict verification solely because milestone linkage is missing
 
-Strict mode is recommended before merging to main or creating a pull request.
+Strict mode is recommended before merging to the configured base branch or creating a pull request.
 
 ---
 
@@ -451,5 +481,5 @@ Strict mode is recommended before merging to main or creating a pull request.
 ### Standalone (no plan, verify branch diff)
 ```
 /aif-verify
-→ No plan found → verify branch diff against main
+→ No plan found → verify branch diff against the configured base branch
 ```

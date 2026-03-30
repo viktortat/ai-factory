@@ -4,6 +4,8 @@
 
 Every `/aif-fix` leaves behind a **patch** — a structured record of what went wrong and how it was fixed. `/aif-evolve` processes patches incrementally, analyzes your project's tech stack and conventions, and turns recurring patterns into **rules** that make skills smarter. The more you fix, the better the evolution.
 
+Paths below show the default `.ai-factory/` layout. `config.yaml` can relocate patch and evolution-log storage via `paths.patches` and `paths.evolutions`; `skill-context` remains fixed.
+
 ## The Learning Loop
 
 ```
@@ -24,7 +26,7 @@ Each iteration of this loop makes the AI more aware of your project's pitfalls. 
 Incremental state file:
 
 ```
-.ai-factory/evolutions/patch-cursor.json
+<paths.evolutions>/patch-cursor.json
 ```
 
 - No cursor: first evolve run reads all patches
@@ -99,13 +101,13 @@ Skill name is normalized automatically: `fix` → `aif-fix`, `/aif-plan` → `ai
 | Step | What happens |
 |------|--------------|
 | **0: Resolve target & load context** | Normalize skill name, validate it exists. Read `DESCRIPTION.md` and skill-context files. For single-skill mode — only that skill's context + evolve's own. For all — glob all context files (no duplicates) |
-| **1: Collect intelligence** | Read patches from `.ai-factory/patches/` incrementally (first run reads all; later runs read only new patches by cursor + a small overlap window to catch missed points), extract each independent prevention point with its target skill(s), and build a **Prevention Point Registry** for the processed set (a patch with 5 points = 5 rows). Group by tags, find recurring patterns. Scan the project for conventions (linters, test patterns, error handling, logging, imports). For single-skill mode — focus convention scanning on areas relevant to that skill |
+| **1: Collect intelligence** | Read patches from `paths.patches` incrementally (first run reads all; later runs read only new patches by cursor + a small overlap window to catch missed points), extract each independent prevention point with its target skill(s), and build a **Prevention Point Registry** for the processed set (a patch with 5 points = 5 rows). Group by tags, find recurring patterns. Scan the project for conventions (linters, test patterns, error handling, logging, imports). For single-skill mode — focus convention scanning on areas relevant to that skill |
 | **2: Read target skills** | Load base SKILL.md **only for target skills** — not all. For `/aif-evolve plan` — read only `aif-plan/SKILL.md`. Keep in memory for Step 3 (no re-reads) |
 | **3: Check for stale rules** | Compare each skill-context rule against base SKILL.md. Classify as: fully covered (Case A), contradiction (Case B), partial overlap (Case C), or still unique (Case D). See [Stale Rule Cleanup](#stale-rule-cleanup) |
 | **4: Present & resolve stale rules** | Present stale rule findings to user in batches of up to 3 via `AskUserQuestion`. Collect decisions (keep / remove / rewrite) and apply them before proceeding |
 | **5: Analyze gaps** | Re-read skill-context files modified in Step 4. **Prevention-point-exhaustive** analysis: iterate over every row in the Prevention Point Registry and check each (prevention_point × target_skill) pair independently. A prevention point is "covered" only when a rule addresses the **specific action** — not merely when the same patch filename appears in a Source field. A gap exists only if **neither** the base SKILL.md **nor** the current skill-context covers the specific prevention point |
 | **6: Generate improvements** | Create concrete, traceable improvements — each linked to specific patches or conventions. One prevention point = one rule. Preserve concrete formats from patches verbatim |
-| **7: Present & apply** | Show improvement report, ask for approval (apply all / let me pick / save report only). For "let me pick" — present in batches of up to 4. Apply approved changes, update metadata, save evolution log to `.ai-factory/evolutions/` |
+| **7: Present & apply** | Show improvement report, ask for approval (apply all / let me pick / save report only). For "let me pick" — present in batches of up to 4. Apply approved changes, update metadata, save evolution log to `paths.evolutions` |
 | **8: Suggest next actions** | Recommend `/aif-review`, next evolution timing, or new skill creation via `/aif-skill-generator` |
 
 ### Built-in vs Custom Skills

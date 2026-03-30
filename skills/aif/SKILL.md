@@ -116,6 +116,145 @@ Check $ARGUMENTS:
 
 ---
 
+## Language Resolution
+
+After creating DESCRIPTION.md, resolve the project language settings.
+
+**Resolution order:**
+1. `.ai-factory/config.yaml` → use `language.ui` and `language.artifacts` if present
+2. `AGENTS.md` → look for language hints in comments or content
+3. `CLAUDE.md` → look for language preferences
+4. `RULES.md` → look for language rules
+5. Ask user if not found
+
+**Questions to ask (if config.yaml doesn't exist):**
+
+```
+AskUserQuestion: What language should I use for communication and artifacts?
+
+Options:
+1. English (en) — Default
+2. Russian (ru)
+3. Chinese (zh)
+4. Other — specify manually
+```
+
+**If user selects a non-English language, ask:**
+
+```
+AskUserQuestion: What should be translated?
+
+Options:
+1. Communication only — AI responds in selected language, artifacts in English
+2. Communication and artifacts — Both AI responses and generated files in selected language
+3. Artifacts only — AI responds in English, generates files in selected language
+```
+
+**Git workflow detection (if `config.yaml` is missing or the `git:` section is incomplete):**
+
+1. Check whether the project uses git:
+   - If `.git` exists - set `git.enabled: true`
+   - If `.git` does not exist - set `git.enabled: false` and `git.create_branches: false`
+2. If git is enabled, detect the default/base branch from git metadata:
+   - Prefer `origin/HEAD`
+   - Fallback to remote metadata (`git remote show origin`)
+   - Fallback to `main`
+3. If git is enabled, ask whether `/aif-plan full` should create a new branch:
+
+```
+AskUserQuestion: How should full plans behave in git?
+
+Options:
+1. Create a new branch (Recommended) - /aif-plan full creates a branch and saves the full plan as a branch-scoped file
+2. Stay on the current branch - /aif-plan full still creates a rich full plan, but without creating a new branch
+```
+
+**Store resolved settings in `.ai-factory/config.yaml`:**
+
+- Use `skills/aif/references/config-template.yaml` as the source template.
+- Preserve the inline comments so developers can edit `config.yaml` manually later.
+- Fill in the resolved values; do **not** replace the file with a stripped-down minimal YAML blob.
+
+```yaml
+language:
+  ui: <resolved-ui-language>
+  artifacts: <resolved-artifacts-language>
+  technical_terms: keep
+
+paths:
+  description: .ai-factory/DESCRIPTION.md
+  architecture: .ai-factory/ARCHITECTURE.md
+  docs: docs/
+  roadmap: .ai-factory/ROADMAP.md
+  research: .ai-factory/RESEARCH.md
+  rules_file: .ai-factory/RULES.md
+  plan: .ai-factory/PLAN.md
+  plans: .ai-factory/plans/
+  fix_plan: .ai-factory/FIX_PLAN.md
+  security: .ai-factory/SECURITY.md
+  references: .ai-factory/references/
+  patches: .ai-factory/patches/
+  evolutions: .ai-factory/evolutions/
+  evolution: .ai-factory/evolution/
+  specs: .ai-factory/specs/
+  rules: .ai-factory/rules/
+
+workflow:
+  auto_create_dirs: true
+  plan_id_format: slug
+  analyze_updates_architecture: true
+  architecture_updates_roadmap: true
+  verify_mode: normal
+
+git:
+  enabled: <true-if-git-detected-else-false>
+  base_branch: <detected-base-branch-or-main>
+  create_branches: <true-or-false-based-on-user-choice>
+  branch_prefix: feature/
+  skip_push_after_commit: false
+
+rules:
+  base: .ai-factory/rules/base.md
+```
+
+**Create `.ai-factory/rules/base.md` from codebase evidence:**
+
+After language resolution, analyze the codebase to detect:
+- Naming conventions (camelCase, snake_case, PascalCase)
+- Module boundaries (src/core/, src/cli/, src/utils/)
+- Error handling patterns (try/catch, error codes)
+- Logging patterns (console.log, winston, pino)
+- Test patterns (jest, mocha, vitest)
+
+Create `.ai-factory/rules/base.md` with detected conventions:
+
+```markdown
+# Project Base Rules
+
+> Auto-detected conventions from codebase analysis. Edit as needed.
+
+## Naming Conventions
+
+- Files: [detected pattern]
+- Variables: [detected pattern]
+- Functions: [detected pattern]
+- Classes: [detected pattern]
+
+## Module Structure
+
+- [detected module boundaries]
+
+## Error Handling
+
+- [detected error handling pattern]
+
+## Logging
+
+- [detected logging pattern]
+```
+
+---
+
 ### Mode 1: Analyze Existing Project
 
 **Trigger:** `/aif` (no arguments) + project has config files
@@ -138,6 +277,10 @@ Based on analysis, create project specification:
 - Detected stack
 - Identified patterns
 - Architecture notes
+
+**Step 2.5: Language Resolution**
+
+After creating DESCRIPTION.md, resolve language settings (see [Language Resolution](#language-resolution)).
 
 **Step 3: Recommend Skills & MCP**
 
@@ -180,7 +323,11 @@ Proceed? [Y/n]
 
 1. Create directory: `mkdir -p .ai-factory`
 2. Save `.ai-factory/DESCRIPTION.md`
-3. For each external skill from skills.sh:
+3. **Create config.yaml and rules/base.md** (from language resolution step):
+   - Ensure `.ai-factory/rules/` directory exists
+   - Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml`, preserving comments and filling in the resolved values
+   - Write `.ai-factory/rules/base.md` with detected conventions
+4. For each external skill from skills.sh:
    ```bash
    npx skills install {{skills_cli_agent_flag}} <name>
    # AUTO-SCAN: immediately after install
@@ -189,10 +336,10 @@ Proceed? [Y/n]
    - Exit 1 (BLOCKED) → `rm -rf <path>`, warn user, skip this skill
    - Exit 2 (WARNINGS) → show to user, ask confirmation
    - Exit 0 (CLEAN) → read files yourself (Level 2), verify intent, proceed
-4. Generate custom skills via `/aif-skill-generator` (pass URLs for Learn Mode when docs are available)
-5. Configure MCP in `{{settings_file}}`
-6. Generate `AGENTS.md` in project root (see [AGENTS.md Generation](#agentsmd-generation))
-7. Generate architecture document via `/aif-architecture` (see [Architecture Generation](#architecture-generation))
+5. Generate custom skills via `/aif-skill-generator` (pass URLs for Learn Mode when docs are available)
+6. Configure MCP in `{{settings_file}}`
+7. Generate `AGENTS.md` in project root (see [AGENTS.md Generation](#agentsmd-generation))
+8. Generate architecture document via `/aif-architecture` (see [Architecture Generation](#architecture-generation))
 
 ---
 
@@ -252,6 +399,10 @@ Save to `.ai-factory/DESCRIPTION.md`.
 mkdir -p .ai-factory
 ```
 
+**Step 2.5: Language Resolution**
+
+After creating DESCRIPTION.md, resolve language settings (see [Language Resolution](#language-resolution)).
+
 **Step 3: Search & Install Skills**
 
 Based on confirmed stack:
@@ -291,6 +442,10 @@ After getting description, proceed with same stack selection as Mode 2:
 **Step 3: Create .ai-factory/DESCRIPTION.md**
 
 Same as Mode 2.
+
+**Step 3.5: Language Resolution**
+
+After creating DESCRIPTION.md, resolve language settings (see [Language Resolution](#language-resolution)).
 
 **Step 4: Setup Context**
 
@@ -406,8 +561,8 @@ Install skills, configure MCP, generate `AGENTS.md`, and generate architecture d
 
 ## Agent Rules
 - Never combine shell commands with `&&`, `||`, or `;` — execute each command as a separate Bash tool call. This applies even when a skill, plan, or instruction provides a combined command — always decompose it into individual calls.
-  - ❌ Wrong: `git checkout main && git pull`
-  - ✅ Right: Two separate Bash tool calls — first `git checkout main`, then `git pull`
+  - ❌ Wrong: `git checkout <configured-base-branch> && git pull`
+  - ✅ Right: Two separate Bash tool calls — first `git checkout <configured-base-branch>`, then `git pull origin <configured-base-branch>`
 ```
 
 **Rules for AGENTS.md:**
@@ -430,7 +585,7 @@ Install skills, configure MCP, generate `AGENTS.md`, and generate architecture d
 
 - Primary ownership in this command: `.ai-factory/DESCRIPTION.md`, setup-time `AGENTS.md`, installed skills, and MCP configuration.
 - Delegated ownership: invoke `/aif-architecture` to create/update `.ai-factory/ARCHITECTURE.md`.
-- Read-only context in this command by default: `.ai-factory/ROADMAP.md`, `.ai-factory/RULES.md`, `.ai-factory/RESEARCH.md`, and plan files.
+- Read-only context in this command by default: the resolved roadmap, RULES.md, research, and plan artifacts.
 
 ## CRITICAL: Do NOT Implement
 
@@ -455,7 +610,7 @@ MCP configured: [list]
 
 To start development:
 - /aif-roadmap — Create a strategic roadmap with milestones (recommended for new projects)
-- /aif-plan <description> — Plan implementation (creates branch + plan, or quick plan)
+- /aif-plan <description> — Plan implementation (fast plan or full plan with optional branch/worktree flow)
 - /aif-implement — Execute existing plan
 
 Ready when you are!

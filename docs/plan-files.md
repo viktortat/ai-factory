@@ -4,10 +4,12 @@
 
 AI Factory uses markdown files to track implementation plans:
 
+Paths below show the default `.ai-factory/` layout. `config.yaml` can relocate plan, fix, patch, reference, security, evolution, and loop-state artifacts while keeping the same ownership.
+
 | Source | Plan File | After Completion |
 |--------|-----------|------------------|
-| `/aif-plan fast` | `.ai-factory/PLAN.md` | Offer to delete |
-| `/aif-plan full` | `.ai-factory/plans/<branch-name>.md` | Keep (user decides) |
+| `/aif-plan fast` | `paths.plan` (default: `.ai-factory/PLAN.md`) | Offer to delete |
+| `/aif-plan full` | `paths.plans/<branch-or-slug>.md` | Keep (user decides) |
 
 ## Artifact Ownership Quick Map
 
@@ -18,12 +20,12 @@ To avoid ownership conflicts, artifact writers are command-scoped:
 | `.ai-factory/DESCRIPTION.md`                                              | `/aif`                | `/aif-implement` may update only when implementation context actually changed                  |
 | `.ai-factory/ARCHITECTURE.md`                                             | `/aif-architecture`   | `/aif-implement` may update structure notes when implementation changes structure              |
 | `.ai-factory/ROADMAP.md`                                                  | `/aif-roadmap`        | `/aif-implement` may mark completed milestones with evidence                                   |
-| `.ai-factory/RULES.md`                                                    | `/aif-rules`          | convention source of truth                                                                     |
+| `paths.rules_file` (default: `.ai-factory/RULES.md`), `paths.rules/<area>.md`, `rules.<area>` | `/aif-rules` | top-level conventions plus area-rule files and registration                         |
 | `.ai-factory/RESEARCH.md`                                                 | `/aif-explore`        | explore-mode writable artifact                                                                 |
-| `.ai-factory/PLAN.md` and `.ai-factory/plans/<branch>.md`                 | `/aif-plan`           | `/aif-improve` refines existing plans                                                          |
-| `.ai-factory/FIX_PLAN.md` and `.ai-factory/patches/*.md`                  | `/aif-fix`            | fix workflow artifacts; context files (including `DESCRIPTION.md`) remain read-only by default |
+| `paths.plan` and `paths.plans/<branch-or-slug>.md`                        | `/aif-plan`           | defaults shown; `/aif-improve` refines existing plans                                          |
+| `paths.fix_plan` and `paths.patches/*.md`                                 | `/aif-fix`            | defaults shown; actual paths come from `paths.fix_plan` and `paths.patches`                    |
 | `.ai-factory/skill-context/*`                                             | `/aif-evolve`         | project-specific skill overrides derived from patches                                          |
-| `.ai-factory/evolutions/*.md`, `.ai-factory/evolutions/patch-cursor.json` | `/aif-evolve`         | evolution logs + incremental patch cursor                                                      |
+| `paths.evolutions/*.md`, `paths.evolutions/patch-cursor.json`             | `/aif-evolve`         | defaults shown; actual evolution-log path comes from `paths.evolutions`                        |
 
 Quality commands (`/aif-commit`, `/aif-review`, `/aif-verify`) treat these files as read-only context by default.
 
@@ -85,12 +87,12 @@ AI Factory has a built-in learning loop. Every bug fix creates a **patch** — a
 
 **How it works:**
 
-1. `/aif-fix` fixes a bug and creates a patch file in `.ai-factory/patches/YYYY-MM-DD-HH.mm.md`
+1. `/aif-fix` fixes a bug and creates a patch file in `paths.patches/YYYY-MM-DD-HH.mm.md`
 2. Each patch documents: **Problem**, **Root Cause**, **Solution**, **Prevention**, and **Tags**
-3. `/aif-evolve` reads patches incrementally using `.ai-factory/evolutions/patch-cursor.json` (first run reads all)
+3. `/aif-evolve` reads patches incrementally using `paths.evolutions/patch-cursor.json` (first run reads all)
 4. Workflow skills (`/aif-implement`, `/aif-fix`, `/aif-improve`) prefer skill-context rules and use only limited recent patch fallback when needed
 
-**Example patch** (`.ai-factory/patches/2026-02-07-14.30.md`):
+**Example patch** (`paths.patches/2026-02-07-14.30.md`):
 
 ```markdown
 # Null reference in UserProfile when user has no avatar
