@@ -54,7 +54,9 @@ Optional discovery step: use `/aif-explore` before planning to investigate ideas
 
 Reliability gate: use `/aif-grounded` when the main problem is not discovery but certainty - high-stakes answers, changeable facts, version-sensitive behavior, or any request where the model must refuse to guess.
 
-If you want exploration results to survive `/clear` and feed directly into planning, ask `/aif-explore` to save them to `.ai-factory/RESEARCH.md`.
+If you want exploration results to survive `/clear` and feed directly into planning, ask `/aif-explore` to save them to `paths.research` (default: `.ai-factory/RESEARCH.md`).
+
+Optional conventions step: use `/aif-rules` to append or refine project-wide axioms in `paths.rules_file`, or `/aif-rules area:<name>` to create or update `<configured rules dir>/<area>.md` and register `rules.<area>` in `.ai-factory/config.yaml`. Downstream workflow skills resolve rules with the same hierarchy: `rules.<area>` > `rules/base.md` > `paths.rules_file`.
 
 ![workflow](https://github.com/lee-to/ai-factory/raw/2.x/art/workflow.png)
 
@@ -159,9 +161,10 @@ If you want exploration results to survive `/clear` and feed directly into plann
 
 | Command | Use Case | Creates Branch? | Creates Plan? |
 |---------|----------|-----------------|---------------|
-| `/aif-explore` | Discovery, option comparison, and requirements clarification before planning | No | No (optional `.ai-factory/RESEARCH.md` on request) |
+| `/aif-explore` | Discovery, option comparison, and requirements clarification before planning | No | No (optional `paths.research` on request) |
 | `/aif-grounded` | Evidence-only answers, strict verification, and high-stakes questions where guessing is unacceptable | No | No |
-| `/aif-roadmap` | Strategic planning, milestones, long-term vision | No | `.ai-factory/ROADMAP.md` |
+| `/aif-roadmap` | Strategic planning, milestones, long-term vision | No | `paths.roadmap` (default: `.ai-factory/ROADMAP.md`) |
+| `/aif-rules` | Capture project conventions or add area-specific rules before planning and implementation | No | No (`paths.rules_file` or `paths.rules/<area>.md`) |
 | `/aif-plan fast` | Small tasks, quick fixes, experiments | No | `paths.plan` (default: `.ai-factory/PLAN.md`) |
 | `/aif-plan full` | Full features, stories, epics | Optional (`git.enabled` + `git.create_branches`) | `paths.plans/<branch-or-slug>.md` |
 | `/aif-plan full --parallel` | Concurrent features via worktrees | Yes + worktree (`git.enabled` + `git.create_branches`) | Autonomous end-to-end |
@@ -178,11 +181,11 @@ Ownership is command-scoped to avoid conflicting writers:
 | Command                                   | Primary artifact ownership                                                                               | Notes                                                   |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
 | `/aif`                                    | `.ai-factory/DESCRIPTION.md`, setup `AGENTS.md`                                                          | invokes `/aif-architecture` for architecture file       |
-| `/aif-architecture`                       | `.ai-factory/ARCHITECTURE.md`                                                                            | may update architecture pointer in DESCRIPTION/AGENTS   |
-| `/aif-roadmap`                            | `.ai-factory/ROADMAP.md`                                                                                 | `/aif-implement` may mark completed milestones          |
-| `/aif-rules`                              | `paths.rules_file` (default: `.ai-factory/RULES.md`)                                                     | append/update rules only                                |
+| `/aif-architecture`                       | `paths.architecture` (default: `.ai-factory/ARCHITECTURE.md`)                                           | may update architecture pointer in DESCRIPTION/AGENTS   |
+| `/aif-roadmap`                            | `paths.roadmap` (default: `.ai-factory/ROADMAP.md`)                                                      | `/aif-implement` may mark completed milestones          |
+| `/aif-rules`                              | `paths.rules_file` (default: `.ai-factory/RULES.md`), `paths.rules/<area>.md`, `rules.<area>`           | top-level axioms plus area-rule files and registration  |
 | `/aif-plan`                               | `paths.plan`, `paths.plans/<branch-or-slug>.md`                                                           | `/aif-improve` refines existing plans                   |
-| `/aif-explore`                            | `.ai-factory/RESEARCH.md`                                                                                | all other artifacts are read-only in explore mode       |
+| `/aif-explore`                            | `paths.research` (default: `.ai-factory/RESEARCH.md`)                                                    | all other artifacts are read-only in explore mode       |
 | `/aif-reference`                          | `paths.references/*`, `paths.references/INDEX.md`                                                        | knowledge references from external sources              |
 | `/aif-fix`                                | `paths.fix_plan`, `paths.patches/*.md`                                                                   | bug-fix learning loop artifacts                         |
 | `/aif-evolve`                             | `paths.evolutions/*.md`, `paths.evolutions/patch-cursor.json`, `.ai-factory/skill-context/*`            | skill-context overrides + evolution logs + cursor state |
@@ -205,7 +208,7 @@ These skills form the development pipeline. Each one feeds into the next.
 /aif-explore add-auth-system
 ```
 
-Thinking-partner mode for exploring ideas, constraints, and trade-offs without implementing code. Reads `.ai-factory/DESCRIPTION.md`, `ARCHITECTURE.md`, `RULES.md`, `.ai-factory/RESEARCH.md`, and active plan files for context. If you want the context to persist across sessions (or after `/clear`), save it to `.ai-factory/RESEARCH.md`. When direction is clear, transition to `/aif-plan fast` or `/aif-plan full`.
+Thinking-partner mode for exploring ideas, constraints, and trade-offs without implementing code. Reads the resolved description, architecture, rules, and research artifacts plus active plan files for context. If you want the context to persist across sessions (or after `/clear`), save it to `paths.research`. When direction is clear, transition to `/aif-plan fast` or `/aif-plan full`.
 
 ### `/aif-grounded [question or task]` — certainty before action
 
@@ -224,7 +227,7 @@ Reliability-gate mode for evidence-backed answers. Use it when the task is alrea
 /aif-roadmap check                        # Auto-scan: find completed milestones
 ```
 
-High-level project planning. Creates `.ai-factory/ROADMAP.md` — a strategic checklist of major milestones (not granular tasks). Use `check` to automatically scan the codebase and mark milestones that appear done. `/aif-implement` also checks the roadmap after completing all tasks.
+High-level project planning. Creates `paths.roadmap` (default: `.ai-factory/ROADMAP.md`) — a strategic checklist of major milestones (not granular tasks). Use `check` to automatically scan the codebase and mark milestones that appear done. `/aif-implement` also checks the roadmap after completing all tasks.
 
 ### `/aif-plan [fast|full] <description>` — plan the work
 

@@ -21,7 +21,9 @@ Execute tasks from the plan, track progress, and enable session continuation.
    - `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, `paths.research`
    - `paths.plan`, `paths.plans`, `paths.fix_plan`, `paths.patches`
    - `paths.rules`
+   - `language.ui`, `language.artifacts`
    - `git.enabled`, `git.base_branch`, `git.create_branches`
+   - `rules.base` plus any named `rules.<area>` entries
 2. Parse arguments:
    - --list → list available plans only (no implementation; STOP)
    - @<path> → explicit plan file override (highest priority)
@@ -150,7 +152,7 @@ Use the resolved config from Step 0:
 - Project architecture and conventions
 - Non-functional requirements
 
-**Read `.ai-factory/ARCHITECTURE.md`** if it exists to understand:
+**Read the resolved architecture artifact** if it exists (`paths.architecture`, default: `.ai-factory/ARCHITECTURE.md`) to understand:
 - Chosen architecture pattern and folder structure
 - Dependency rules (what depends on what)
 - Layer/module boundaries and communication patterns
@@ -328,7 +330,7 @@ TaskUpdate(taskId, status: "completed")
 - Even if deletion will be offered later
 - Plan file is the source of truth for progress
 
-**3.7: Update .ai-factory/DESCRIPTION.md if needed**
+**3.7: Update the resolved description artifact if needed**
 
 If during implementation:
 - New dependency/library was added
@@ -336,14 +338,14 @@ If during implementation:
 - New integration added (e.g., Stripe, SendGrid)
 - Architecture decision was made
 
-→ Update `.ai-factory/DESCRIPTION.md` to reflect the change:
+→ Update the resolved description artifact (`paths.description`, default: `.ai-factory/DESCRIPTION.md`) to reflect the change:
 
 ```markdown
 ## Tech Stack
 - **Cache:** Redis (added for session storage)
 ```
 
-This keeps .ai-factory/DESCRIPTION.md as the source of truth.
+This keeps the resolved description artifact as the source of truth.
 
 **3.7.1: Update AGENTS.md and ARCHITECTURE.md if project structure changed**
 
@@ -354,7 +356,7 @@ If during implementation:
 
 → Update `AGENTS.md` — refresh the "Project Structure" tree and "Key Entry Points" table to reflect new directories/files.
 
-→ Update `.ai-factory/ARCHITECTURE.md` — if new modules or layers were added that should be documented in the folder structure section.
+→ Update the resolved architecture artifact — if new modules or layers were added that should be documented in the folder structure section.
 
 **Only update if structure actually changed** — don't rewrite on every task. Check if new directories were created that aren't in the current structure map.
 
@@ -423,7 +425,7 @@ What's next?
 
 **Check ROADMAP.md progress:**
 
-If `.ai-factory/ROADMAP.md` exists:
+If the resolved roadmap artifact exists:
 1. Read it
 1.1. If the plan file includes `## Roadmap Linkage` with a non-`none` milestone, prefer that milestone for completion marking
 2. Check if the completed work corresponds to any unchecked milestone
@@ -435,11 +437,11 @@ If `.ai-factory/ROADMAP.md` exists:
 Only do this step when there is something concrete to capture.
 
 **DESCRIPTION.md (allowed in this command):**
-- If this plan introduced new dependencies/integrations or changed the stack, update `.ai-factory/DESCRIPTION.md` with factual deltas only.
+- If this plan introduced new dependencies/integrations or changed the stack, update the resolved description artifact with factual deltas only.
 - Do not rewrite unrelated sections.
 
 **ARCHITECTURE.md + AGENTS.md (allowed in this command):**
-- If new modules/layers/folders were added (or dependency rules changed), update `.ai-factory/ARCHITECTURE.md` to reflect the new structure and constraints.
+- If new modules/layers/folders were added (or dependency rules changed), update the resolved architecture artifact to reflect the new structure and constraints.
 - If you maintain `AGENTS.md` structure maps or entry points, refresh them only when they are now incorrect.
 
 **ROADMAP.md (allowed, limited):**
@@ -670,12 +672,12 @@ Shows progress without executing.
 - ❌ Add tasks not in the plan
 - ❌ Skip tasks without user permission
 - ❌ Mark incomplete tasks as done
-- ❌ Violate `.ai-factory/ARCHITECTURE.md` conventions for file placement and module boundaries
+- ❌ Violate the resolved architecture artifact conventions for file placement and module boundaries
 
 ## Artifact Ownership Boundaries
 
 - Primary ownership in this command: task execution state and plan progress checkboxes.
-- Allowed context artifact updates: `.ai-factory/DESCRIPTION.md`, `.ai-factory/ARCHITECTURE.md`, and roadmap milestone completion in `.ai-factory/ROADMAP.md` when implementation evidence justifies it.
+- Allowed context artifact updates: the resolved description artifact, the resolved architecture artifact, and roadmap milestone completion in the resolved roadmap artifact when implementation evidence justifies it.
 - Read-only context in this command by default: the resolved `paths.rules_file` and `paths.research` artifacts.
 - Context-gate findings should be communicated as `WARN`/`ERROR` outputs only; this does not replace the required verbose implementation logging rules below.
 

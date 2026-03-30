@@ -20,9 +20,9 @@ Explore ideas, constraints, and trade-offs before planning:
 /aif-explore add-auth-system
 ```
 - Uses a thinking-partner mode: open questions, option mapping, and ASCII visualization
-- Reads project context from `.ai-factory/DESCRIPTION.md`, `ARCHITECTURE.md`, `RULES.md`, `.ai-factory/RESEARCH.md`, and active plan files when present
+- Reads project context from the resolved description, architecture, rules, and research artifacts plus active plan files when present
 - Does **not** implement code in this mode; when direction is clear, move to `/aif-plan`
-- Can optionally persist exploration context to `.ai-factory/RESEARCH.md` so you can `/clear` and still feed results into `/aif-plan`
+- Can optionally persist exploration context to `paths.research` (default: `.ai-factory/RESEARCH.md`) so you can `/clear` and still feed results into `/aif-plan`
 - Best when the problem is still fuzzy: requirements unclear, trade-offs unresolved, or you want to inspect the codebase before choosing a direction
 
 ### `/aif-plan [fast|full] <description>`
@@ -39,9 +39,9 @@ Two modes:
 
 Both modes explore your codebase for patterns, create tasks with dependencies, and include commit checkpoints for 5+ tasks.
 
-If `.ai-factory/RESEARCH.md` exists, `/aif-plan` reads the `Active Summary` and includes it as `Research Context` in the plan.
+If the resolved research artifact exists, `/aif-plan` reads the `Active Summary` and includes it as `Research Context` in the plan.
 
-If `.ai-factory/ROADMAP.md` exists, `/aif-plan` may also capture a `Roadmap Linkage` section (milestone name + brief rationale) to make milestone alignment explicit.
+If the resolved roadmap artifact exists, `/aif-plan` may also capture a `Roadmap Linkage` section (milestone name + brief rationale) to make milestone alignment explicit.
 
 **Parallel mode** — work on multiple features simultaneously using `git worktree`:
 ```
@@ -65,8 +65,8 @@ Creates or updates a strategic project roadmap:
 /aif-roadmap                              # Update existing roadmap (interactive)
 /aif-roadmap check                        # Auto-scan codebase, mark done milestones
 ```
-- Reads `.ai-factory/DESCRIPTION.md` + `ARCHITECTURE.md` for context
-- **First run** — explores codebase, asks for major goals, generates `.ai-factory/ROADMAP.md`
+- Reads the resolved description and architecture artifacts for context
+- **First run** — explores codebase, asks for major goals, generates `paths.roadmap` (default: `.ai-factory/ROADMAP.md`)
 - **Subsequent runs** — review progress, add milestones, reprioritize, mark completed
 - **`check`** — automated progress scan: analyzes codebase for evidence of completed milestones, reports done/partial/not started, marks completed with confirmation
 - Milestones are high-level goals (not granular tasks — that's `/aif-plan`)
@@ -209,8 +209,8 @@ When called with a description:
 ```
 /aif project management tool with GitHub integration
 ```
-- Creates `.ai-factory/DESCRIPTION.md` with enhanced project specification
-- Creates `.ai-factory/ARCHITECTURE.md` with architecture decisions and guidelines
+- Creates the resolved description artifact (default: `.ai-factory/DESCRIPTION.md`) with enhanced project specification
+- Creates the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`) with architecture decisions and guidelines
 - Transforms your idea into a structured, professional description
 
 **Does NOT implement your project** - only sets up context.
@@ -249,10 +249,10 @@ Generates architecture guidelines tailored to your project:
 /aif-architecture clean     # Use Clean Architecture
 /aif-architecture monolith  # Use Modular Monolith
 ```
-- Reads `.ai-factory/DESCRIPTION.md` for project context
+- Reads the resolved description artifact for project context
 - Recommends architecture pattern based on team size, domain complexity, and tech stack
 - Reads `.ai-factory/config.yaml` for `paths.description`, `paths.architecture`, `language.ui`, and `language.artifacts`
-- Generates `.ai-factory/ARCHITECTURE.md` with folder structure, dependency rules, code examples
+- Generates the resolved architecture artifact (default: `.ai-factory/ARCHITECTURE.md`) with folder structure, dependency rules, code examples
 - All examples adapted to your project's language and framework
 - Called automatically by `/aif` during setup, but can also be used standalone
 

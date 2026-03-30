@@ -17,6 +17,7 @@ Use it when you need to know:
 | Operation | Allowed writer | Scope |
 |-----------|----------------|-------|
 | Create the initial file | `/aif` | Whole file |
+| Bootstrap config while adding the first area rule | `/aif-rules area:<name>` | Minimal config scaffold plus the new `rules.<area>` entry |
 | Refresh the file during setup reruns | `/aif` | Whole file |
 | Register a new area rule | `/aif-rules area:<name>` | `rules.<area>` entry only |
 | Manual edits | Developer | Any key |
@@ -82,7 +83,7 @@ All other built-in skills treat `config.yaml` as read-only input.
 | `git.base_branch` | `main` with auto-detect fallback | `/aif`, `/aif-plan`, `/aif-improve`, `/aif-implement`, `/aif-verify`, `/aif-review` | Target branch for diff, merge, and verification guidance |
 | `git.create_branches` | `true` | `/aif`, `/aif-plan`, `/aif-improve`, `/aif-implement`, `/aif-verify` | Full plans may still exist when false; they just skip auto branch creation |
 | `git.branch_prefix` | `feature/` | `/aif`, `/aif-plan` | Prefix for auto-created full-plan branches |
-| `git.skip_push_after_commit` | `false` | `/aif`, `/aif-commit` | When true, `/aif-commit` skips push prompt and ends after local commit |
+| `git.skip_push_after_commit` | `false` | `/aif-commit` | When true, `/aif-commit` skips push prompt and ends after local commit |
 
 ### `rules`
 
@@ -98,7 +99,7 @@ All other built-in skills treat `config.yaml` as read-only input.
 | Skill | Reads config | Writes config | Write scope |
 |-------|--------------|---------------|-------------|
 | `/aif` | Yes | Yes | Creates or refreshes the whole `config.yaml` during setup |
-| `/aif-rules` | Yes | Yes, limited | Adds or updates `rules.<area>` registrations when creating area rules |
+| `/aif-rules` | Yes | Yes, limited | Adds or updates `rules.<area>` registrations when creating area rules; may bootstrap a minimal config file when the first area rule is created |
 
 ### Config Readers
 

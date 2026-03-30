@@ -1,6 +1,6 @@
 ---
 name: aif-roadmap
-description: Create or update a project roadmap with major milestones. Generates .ai-factory/ROADMAP.md — a strategic checklist of high-level goals. Use when user says "roadmap", "project plan", "milestones", or "what to build next".
+description: Create or update a project roadmap with major milestones. Generates the configured roadmap artifact (default .ai-factory/ROADMAP.md) — a strategic checklist of high-level goals. Use when user says "roadmap", "project plan", "milestones", or "what to build next".
 argument-hint: "[check | project vision or requirements]"
 allowed-tools: Read Write Edit Glob Grep Bash(git *) AskUserQuestion Questions
 disable-model-invocation: true
@@ -27,7 +27,7 @@ If config.yaml doesn't exist, use defaults:
 - Project architecture and conventions
 - Non-functional requirements
 
-**Read `.ai-factory/ARCHITECTURE.md`** if it exists to understand:
+**Read the resolved architecture artifact** if it exists (`paths.architecture`, default: `.ai-factory/ARCHITECTURE.md`) to understand:
 - Chosen architecture pattern and folder structure
 - Module boundaries and communication patterns
 

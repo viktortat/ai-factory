@@ -158,7 +158,7 @@ User wants to create or update area-specific rules:
 
 7. **Register the area in `.ai-factory/config.yaml`:**
    - Ensure `rules.<area>` points to the resolved area rules file path
-   - If `config.yaml` does not exist yet, create it with defaults plus the new `rules.<area>` entry
+   - If `config.yaml` does not exist yet, create a minimal config scaffold using defaults plus the new `rules.<area>` entry
    - Preserve existing `rules.base` and any other named `rules.<other-area>` entries
 
 8. **Confirm:**
@@ -169,6 +169,11 @@ User wants to create or update area-specific rules:
 
    Total <area> rules: [count]
    ```
+
+9. **STOP after Mode C completes.**
+   - Do **not** continue to Step 2 / Step 3 / Step 4 below.
+   - Those steps apply only to top-level axioms rules in the resolved `paths.rules_file` artifact.
+   - Area rules belong only in `<resolved rules dir>/<area>.md` plus the matching `rules.<area>` registration in `config.yaml`.
 
 **Common areas:**
 - `api` - REST/GraphQL API conventions

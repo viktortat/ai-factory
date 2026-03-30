@@ -32,7 +32,7 @@ If config.yaml doesn't exist, use defaults:
 - Coding conventions
 - Non-functional requirements
 
-**ALSO:** Read `.ai-factory/ARCHITECTURE.md` if it exists to understand:
+**ALSO:** Read the resolved architecture artifact if it exists (`paths.architecture`, default: `.ai-factory/ARCHITECTURE.md`) to understand:
 - Chosen architecture pattern
 - Folder structure conventions
 - Layer/module boundaries
@@ -42,7 +42,7 @@ Use this context when:
 - Exploring codebase (know what patterns to look for)
 - Writing task descriptions (use correct technologies)
 - Planning file structure (follow project conventions)
-- **Follow architecture guidelines from `.ai-factory/ARCHITECTURE.md` when planning file structure and task organization**
+- **Follow architecture guidelines from the resolved architecture artifact when planning file structure and task organization**
 
 **Read `.ai-factory/skill-context/aif-plan/SKILL.md`** — MANDATORY if the file exists.
 
@@ -64,7 +64,7 @@ codebase conventions, and tech-stack analysis. These rules are tailored to the c
 **Enforcement:** After generating any output artifact, verify it against all skill-context rules.
 If any rule is violated — fix the output before presenting it to the user.
 
-**OPTIONAL (recommended):** Read `.ai-factory/ROADMAP.md` if it exists:
+**OPTIONAL (recommended):** Read the resolved roadmap artifact if it exists (`paths.roadmap`, default: `.ai-factory/ROADMAP.md`):
 - Use it to link this plan to a specific milestone (when applicable)
 - This reduces ambiguity in `/aif-implement` milestone completion and `/aif-verify` roadmap gates
 
@@ -216,7 +216,7 @@ AskUserQuestion: Before we start, a few questions:
    a. Yes — mandatory docs checkpoint at completion (recommended)
    b. No — warn-only (`WARN [docs]`), no mandatory checkpoint
 
-4. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
+4. Roadmap milestone linkage (only if the resolved roadmap artifact exists):
    a. Link this plan to a milestone
    b. Skip — no linkage (allowed; `/aif-verify --strict` should report WARN, not fail, for missing linkage alone)
 
@@ -234,8 +234,8 @@ Docs policy semantics:
 - `Docs: yes` → `/aif-implement` MUST show a mandatory documentation checkpoint and route docs changes through `/aif-docs`
 - `Docs: no` (or unset) → `/aif-implement` emits `WARN [docs]` and continues without a mandatory docs checkpoint
 
-**If `.ai-factory/ROADMAP.md` exists and the user chose milestone linkage:**
-- Read `.ai-factory/ROADMAP.md` and list candidate milestones (prefer unchecked items)
+**If the resolved roadmap artifact exists and the user chose milestone linkage:**
+- Read the resolved roadmap artifact and list candidate milestones (prefer unchecked items)
 - Ask the user to pick one milestone (or type a custom one)
 - Store the selected milestone name and a 1-sentence rationale for inclusion in the plan file
 
@@ -323,7 +323,7 @@ AskUserQuestion: Before we start:
 
 2. Any specific requirements or constraints?
 
-3. Roadmap milestone linkage (only if `.ai-factory/ROADMAP.md` exists):
+3. Roadmap milestone linkage (only if the resolved roadmap artifact exists):
    a. Link this plan to a milestone
    b. Skip — no linkage (allowed; `/aif-verify --strict` should report WARN, not fail, for missing linkage alone)
 ```
@@ -414,12 +414,12 @@ mkdir -p <configured plans dir>
 - Title with feature name
 - Branch and creation date
 - `Settings` section (Testing, Logging, Docs)
-- `Roadmap Linkage` section (optional, only if `.ai-factory/ROADMAP.md` exists)
+- `Roadmap Linkage` section (optional, only if the resolved roadmap artifact exists)
 - `Research Context` section (optional, if the resolved research path exists)
 - `Tasks` section grouped by phases
 - `Commit Plan` section when there are 5+ tasks
 
-If `.ai-factory/ROADMAP.md` exists:
+If the resolved roadmap artifact exists:
 - If the user linked a milestone, write `## Roadmap Linkage` with `Milestone: "..."` and `Rationale: ...`
 - If the user skipped linkage, write `## Roadmap Linkage` with `Milestone: "none"` and `Rationale: "Skipped by user"`
 
@@ -552,7 +552,7 @@ Use canonical examples in `references/TASK-FORMAT.md`:
 7. **Commit checkpoints for large plans** — 5+ tasks need commit plan with checkpoints every 3-5 tasks
 8. **Plan file location** – Fast mode: `paths.plan`. Full mode: `paths.plans/<branch-or-slug>.md`
 9. **Ownership boundary** – This command owns plan files only (the resolved fast plan path and files under `paths.plans`). Use owner commands (`/aif-roadmap`, `/aif-rules`, `/aif-explore`) for their artifacts.
-10. **Roadmap linkage (when available)** — If `.ai-factory/ROADMAP.md` exists, include a `## Roadmap Linkage` section in the plan (or explicitly state it was skipped).
+10. **Roadmap linkage (when available)** — If the resolved roadmap artifact exists, include a `## Roadmap Linkage` section in the plan (or explicitly state it was skipped).
 
 ## Plan File Handling
 

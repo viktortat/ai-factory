@@ -20,7 +20,7 @@ To avoid ownership conflicts, artifact writers are command-scoped:
 | `.ai-factory/DESCRIPTION.md`                                              | `/aif`                | `/aif-implement` may update only when implementation context actually changed                  |
 | `.ai-factory/ARCHITECTURE.md`                                             | `/aif-architecture`   | `/aif-implement` may update structure notes when implementation changes structure              |
 | `.ai-factory/ROADMAP.md`                                                  | `/aif-roadmap`        | `/aif-implement` may mark completed milestones with evidence                                   |
-| `paths.rules_file` (default: `.ai-factory/RULES.md`)                      | `/aif-rules`          | convention source of truth                                                                     |
+| `paths.rules_file` (default: `.ai-factory/RULES.md`), `paths.rules/<area>.md`, `rules.<area>` | `/aif-rules` | top-level conventions plus area-rule files and registration                         |
 | `.ai-factory/RESEARCH.md`                                                 | `/aif-explore`        | explore-mode writable artifact                                                                 |
 | `paths.plan` and `paths.plans/<branch-or-slug>.md`                        | `/aif-plan`           | defaults shown; `/aif-improve` refines existing plans                                          |
 | `paths.fix_plan` and `paths.patches/*.md`                                 | `/aif-fix`            | defaults shown; actual paths come from `paths.fix_plan` and `paths.patches`                    |

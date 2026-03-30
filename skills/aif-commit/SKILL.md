@@ -16,6 +16,7 @@ Generate commit messages following the [Conventional Commits](https://www.conven
 - **Paths:** `paths.description`, `paths.architecture`, `paths.rules_file`, `paths.roadmap`, and `paths.rules`
 - **Language:** `language.ui` for prompts and commit message conventions
 - **Git preference:** `git.skip_push_after_commit` for post-commit push behavior
+- **Rules hierarchy:** `rules.base` plus any named `rules.<area>` entries
 
 If config.yaml doesn't exist, use defaults:
 - Paths: `.ai-factory/` for all artifacts
@@ -48,7 +49,7 @@ If any rule is violated — fix the output before presenting it to the user.
    - If nothing staged, show warning and suggest staging
 
 2. **Run Context Gates (Read-Only)**
-   - Check `.ai-factory/ARCHITECTURE.md` and `.ai-factory/DESCRIPTION.md` (use paths from config) to catch obvious scope/boundary drift
+   - Check the resolved architecture and description artifacts (use paths from config) to catch obvious scope/boundary drift
    - Check the resolved RULES.md and roadmap artifacts (use paths from config) to catch rule and milestone alignment issues
    - Check rules hierarchy (resolved `paths.rules_file` + `rules.base` + named `rules.<area>`) for commit conventions
    - Missing optional files (`ROADMAP.md`, `RULES.md`) are `WARN`, not blockers

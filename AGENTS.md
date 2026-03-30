@@ -85,10 +85,10 @@ Artifact writers are command-scoped to prevent ownership conflicts:
 | Artifact                                                         | Primary writer command | Notes                                                                                            |
 |------------------------------------------------------------------|------------------------|--------------------------------------------------------------------------------------------------|
 | `.ai-factory/DESCRIPTION.md`                                     | `/aif`                 | `/aif-implement` may update only when implementation materially changed context facts            |
-| `.ai-factory/ARCHITECTURE.md`                                    | `/aif-architecture`    | `/aif-implement` may update structure notes when structure changes                               |
-| `.ai-factory/ROADMAP.md`                                         | `/aif-roadmap`         | `/aif-implement` may mark completed milestones with evidence                                     |
-| `paths.rules_file` (default: `.ai-factory/RULES.md`)             | `/aif-rules`           | conventions source of truth                                                                      |
-| `.ai-factory/RESEARCH.md`                                        | `/aif-explore`         | explore-mode writable artifact                                                                   |
+| `paths.architecture` (default: `.ai-factory/ARCHITECTURE.md`)    | `/aif-architecture`    | `/aif-implement` may update structure notes when structure changes                               |
+| `paths.roadmap` (default: `.ai-factory/ROADMAP.md`)              | `/aif-roadmap`         | `/aif-implement` may mark completed milestones with evidence                                     |
+| `paths.rules_file` (default: `.ai-factory/RULES.md`), `paths.rules/<area>.md`, `rules.<area>` | `/aif-rules`           | top-level conventions plus area-rule files and registration                                     |
+| `paths.research` (default: `.ai-factory/RESEARCH.md`)            | `/aif-explore`         | explore-mode writable artifact                                                                   |
 | `paths.plan` / `paths.plans/<branch-or-slug>.md`                 | `/aif-plan`            | defaults shown; `/aif-improve` refines existing plans                                            |
 | `paths.fix_plan` and `paths.patches/*.md`                        | `/aif-fix`             | fix workflow ownership; context artifacts (including `DESCRIPTION.md`) stay read-only by default |
 | `README.md` and `paths.docs/*`                                   | `/aif-docs`            | README stays the landing page; detailed docs directory is configurable via `paths.docs`          |
@@ -175,11 +175,19 @@ Check: has arguments? has project files?
     ↓
 STOP (does NOT implement)
 
+/aif-rules [rule text | area:<name>]
+    ↓
+No `area:` prefix → append/update project-wide axioms in configured `paths.rules_file`
+`area:<name>` → create/update `<configured rules dir>/<area>.md` and register `rules.<area>` in `config.yaml`
+    ↓
+Workflow skills resolve conventions with the same hierarchy:
+`rules.<area>` → `rules/base.md` → `paths.rules_file`
+
 /aif-roadmap [vision or requirements]
     ↓
 Reads .ai-factory/DESCRIPTION.md + ARCHITECTURE.md for context
     ↓
-First run → explores codebase, asks user for goals → generates .ai-factory/ROADMAP.md
+First run → explores codebase, asks user for goals → generates configured `paths.roadmap`
 Subsequent → review progress, add/reprioritize/mark milestones done
     ↓
 ROADMAP.md = strategic checklist of high-level goals
@@ -232,7 +240,7 @@ Updates DESCRIPTION.md if stack changes
     ↓
 Prompts for commits at checkpoints
     ↓
-Checks .ai-factory/ROADMAP.md → marks completed milestones
+Checks configured `paths.roadmap` → marks completed milestones
     ↓
 Docs policy:
     - Docs: yes → mandatory docs checkpoint (update/create/skip) routed via /aif-docs

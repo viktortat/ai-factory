@@ -107,7 +107,7 @@ git rev-parse --verify <argument> 2>/dev/null
 
 Before finalizing review findings, run read-only context gates:
 
-- Check `.ai-factory/ARCHITECTURE.md` (if present) for boundary/dependency alignment issues.
+- Check the resolved architecture artifact (if present) for boundary/dependency alignment issues.
 - Check the resolved RULES.md artifact (if present) for explicit convention violations.
 - Check the resolved roadmap artifact (if present) for milestone alignment and mention missing linkage for likely `feat`/`fix`/`perf` work.
 
