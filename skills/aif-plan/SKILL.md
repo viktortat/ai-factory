@@ -2,43 +2,77 @@
 name: aif-plan
 description: Plan implementation for a feature or task. Two modes — fast (single quick plan) or full (richer plan with optional git branch/worktree flow). Use when user says "plan", "new feature", "start feature", "create tasks".
 argument-hint: "[fast | full] [--parallel | --list | --cleanup <branch>] <description>"
-allowed-tools: Read Write Glob Grep Bash(git *) Bash(cd *) Bash(cp *) Bash(mkdir *) Bash(basename *) TaskCreate TaskUpdate TaskList AskUserQuestion Questions Task
+allowed-tools: Read Write Glob Grep Bash(git *) Bash(cd *) Bash(cp *) Bash(mkdir *) Bash(basename *) TaskCreate TaskUpdate TaskList AskUserQuestion Questions Task mcp__handoff__handoff_sync_status mcp__handoff__handoff_push_plan mcp__handoff__handoff_get_task mcp__handoff__handoff_list_tasks mcp__handoff__handoff_update_task
 disable-model-invocation: false
 ---
 
 # Plan - Implementation Planning
 
 Create an implementation plan for a feature or task. Two modes:
+
 - **Fast** – quick plan, no git branch, saves to the configured fast plan path (default: `.ai-factory/PLAN.md`)
 - **Full** — richer plan, asks preferences, saves to the configured full-plan directory, and optionally creates a git branch/worktree when git is enabled and branch creation is allowed
 
 ## Workflow
 
+### Step 0 (pre): Detect Handoff Mode
+
+Handoff mode: !`echo ${HANDOFF_MODE:-}`
+Handoff task ID: !`echo ${HANDOFF_TASK_ID:-}`
+
+**Then check `HANDOFF_MODE`:**
+
+#### When `HANDOFF_MODE` is `1` (autonomous Handoff agent)
+
+The Handoff coordinator already manages status transitions and DB writes directly. Do NOT call MCP tools (`handoff_sync_status`, `handoff_push_plan`). Instead:
+
+- **No interactive questions:** Do not use `AskUserQuestion` — use sensible defaults (verbose logging, yes to tests, yes to docs, skip roadmap linkage).
+- **Mode default:** If mode is not specified, default to `fast`.
+- **Plan annotation:** If `HANDOFF_TASK_ID` is non-empty, insert `<!-- handoff:task:<HANDOFF_TASK_ID> -->` as the very first line of the plan file, before the title. This annotation links the plan to its Handoff task for bidirectional sync. **Omitting this annotation is a bug.**
+
+#### When `HANDOFF_MODE` is NOT `1` (manual Claude Code session)
+
+If polishing an existing plan, extract the Handoff task ID from the `<!-- handoff:task:<id> -->` annotation on the first line (if present). If creating a new plan and no annotation context exists, skip all MCP sync — there is no linked Handoff task.
+
+If a task ID IS found in the plan annotation, sync with Handoff via MCP tools:
+
+- **On start:** Call `handoff_sync_status` with `{ taskId: <extracted-id>, newStatus: "planning", sourceTimestamp: <now ISO>, direction: "aif_to_handoff", paused: true }`.
+- **On completion:** Call `handoff_push_plan` with `{ taskId: <extracted-id>, planContent: <full plan text> }`. Then call `handoff_sync_status` with `{ newStatus: "plan_ready", ..., paused: true }`.
+
+**CRITICAL:** Always pass `paused: true` with every `handoff_sync_status` call except `done`. This prevents the autonomous Handoff agent from picking up the task while you work manually. Only `done` passes `paused: false`.
+
+Preserve the `<!-- handoff:task:<id> -->` annotation on the first line when rewriting the plan file.
+
 ### Step 0: Load Project Context
 
 **FIRST:** Read `.ai-factory/config.yaml` if it exists to resolve:
+
 - **Paths:** `paths.description`, `paths.architecture`, `paths.roadmap`, `paths.research`, `paths.rules_file`, `paths.plan`, `paths.plans`, `paths.patches`, `paths.evolutions`, `paths.specs`, and `paths.rules`
 - **Language:** `language.ui` for AskUserQuestion prompts
 - **Git:** `git.enabled`, `git.base_branch`, `git.create_branches`, and `git.branch_prefix`
 
 If config.yaml doesn't exist, use defaults:
+
 - Paths: `.ai-factory/` for all artifacts
 - Language: `en` (English)
 - Git: `enabled: true`, `base_branch: main`, `create_branches: true`, `branch_prefix: feature/`
 
 **THEN:** Read `.ai-factory/DESCRIPTION.md` (use path from config) if it exists to understand:
+
 - Tech stack (language, framework, database, ORM)
 - Project architecture
 - Coding conventions
 - Non-functional requirements
 
 **ALSO:** Read the resolved architecture artifact if it exists (`paths.architecture`, default: `.ai-factory/ARCHITECTURE.md`) to understand:
+
 - Chosen architecture pattern
 - Folder structure conventions
 - Layer/module boundaries
 - Dependency rules
 
 Use this context when:
+
 - Exploring codebase (know what patterns to look for)
 - Writing task descriptions (use correct technologies)
 - Planning file structure (follow project conventions)
@@ -50,6 +84,7 @@ This file contains project-specific rules accumulated by `/aif-evolve` from patc
 codebase conventions, and tech-stack analysis. These rules are tailored to the current project.
 
 **How to apply skill-context rules:**
+
 - Treat them as **project-level overrides** for this skill's general instructions
 - When a skill-context rule conflicts with a general rule written in this SKILL.md,
   **the skill-context rule wins** (more specific context takes priority — same principle as nested CLAUDE.md files)
@@ -65,10 +100,12 @@ codebase conventions, and tech-stack analysis. These rules are tailored to the c
 If any rule is violated — fix the output before presenting it to the user.
 
 **OPTIONAL (recommended):** Read the resolved roadmap artifact if it exists (`paths.roadmap`, default: `.ai-factory/ROADMAP.md`):
+
 - Use it to link this plan to a specific milestone (when applicable)
 - This reduces ambiguity in `/aif-implement` milestone completion and `/aif-verify` roadmap gates
 
 **OPTIONAL (recommended):** Read the resolved research path if it exists:
+
 - Treat `## Active Summary (input for /aif-plan)` as an additional requirements source
 - Carry over constraints/decisions into tasks and plan settings
 - Prefer the summary over raw notes; use `## Sessions` only when you need deeper rationale
@@ -79,6 +116,7 @@ If any rule is violated — fix the output before presenting it to the user.
 Do **not** auto-run `git init`.
 
 Resolve the current git mode from config first:
+
 - `git.enabled: true` → git-aware workflow is allowed
 - `git.enabled: false` → no-git workflow only
 - `git.base_branch` → target branch for diffs/merge guidance (default: detected branch or `main`)
@@ -86,11 +124,13 @@ Resolve the current git mode from config first:
 - `git.create_branches: false` → full mode still creates a rich plan, but stays on the current branch / repository state
 
 If `git.enabled = false`:
+
 - Skip all branch/worktree commands
 - Save full-mode plans under `paths.plans/<slug>.md`
 - Treat `--parallel`, `--list`, and `--cleanup` as unavailable
 
 If `git.enabled = true` but the repository is not actually inside a git work tree:
+
 - Warn the user that git-aware actions are unavailable until the repository is initialized
 - Fall back to the same no-git behavior as above
 
@@ -107,6 +147,7 @@ full        → Full mode (first word)
 ```
 
 **Parsing rules:**
+
 - Strip `--parallel`, `--list`, `--cleanup <branch>`, `fast`, `full` from `$ARGUMENTS`
 - Remaining text becomes the description
 - `--list` and `--cleanup` execute immediately and **STOP** (do NOT continue to Step 1+)
@@ -114,6 +155,7 @@ full        → Full mode (first word)
 - If `--parallel` is set while `git.create_branches = false`, reject it with a short explanation because parallel mode requires branch creation
 
 **If the description is empty:**
+
 - If the resolved research path exists and its `Active Summary` has a non-empty `Topic:`, default the description to that topic (no extra user input required)
 - Otherwise, ask the user for a short feature description
 
@@ -121,6 +163,7 @@ full        → Full mode (first word)
 **If `--cleanup` is present**, jump to [--cleanup Subcommand](#--cleanup-subcommand).
 
 **Mode selection:**
+
 - `fast` keyword → fast mode
 - `full` keyword → full mode
 - Neither → ask interactively:
@@ -134,6 +177,7 @@ Options:
 ```
 
 If the user did not provide a description and the resolved research path exists:
+
 - Mention that you will default the description to the `Active Summary` topic
 - Only ask for `full` vs `fast` (no description prompt needed)
 
@@ -146,6 +190,7 @@ For concrete parsing examples and expected behavior per command shape, read `ref
 ### Step 1: Parse Description & Quick Reconnaissance
 
 From the description, extract:
+
 - Core functionality being added
 - Key domain terms
 - Type (feature, enhancement, fix, refactor)
@@ -162,6 +207,7 @@ Task(subagent_type: Explore, model: sonnet, prompt:
 ```
 
 **Rules:**
+
 - 1-2 agents max, "quick" thoroughness — this is reconnaissance, not deep analysis
 - Deep exploration happens later in Step 3
 - If `.ai-factory/DESCRIPTION.md` already provides sufficient context, this step can be skipped
@@ -169,6 +215,7 @@ Task(subagent_type: Explore, model: sonnet, prompt:
 ### Step 1.2: Generate Full-Mode Plan Identifier
 
 Generate a reusable slug from the description first. This slug is used for:
+
 - the git branch name when branch creation is enabled
 - the full-mode plan filename when no branch is created
 
@@ -185,6 +232,7 @@ Examples:
 ```
 
 **Rules:**
+
 - Start with the configured `git.branch_prefix` when present (default: `feature/`)
 - Lowercase with hyphens
 - Max 50 characters
@@ -192,6 +240,7 @@ Examples:
 - Descriptive but concise
 
 If `git.enabled = false` or `git.create_branches = false`:
+
 - Do **not** create a branch name
 - Use the slug to create `<configured plans dir>/<slug>.md`
 - Keep the user on the current branch or current non-git directory state
@@ -224,6 +273,7 @@ AskUserQuestion: Before we start, a few questions:
 ```
 
 **Default to verbose logging.** AI-generated code benefits greatly from extensive logging because:
+
 - Subtle bugs are common and hard to trace without logs
 - Users can always remove logs later
 - Missing logs during development wastes debugging time
@@ -231,10 +281,12 @@ AskUserQuestion: Before we start, a few questions:
 Store all preferences — they will be used in the plan file and passed to `/aif-implement`.
 
 Docs policy semantics:
+
 - `Docs: yes` → `/aif-implement` MUST show a mandatory documentation checkpoint and route docs changes through `/aif-docs`
 - `Docs: no` (or unset) → `/aif-implement` emits `WARN [docs]` and continues without a mandatory docs checkpoint
 
 **If the resolved roadmap artifact exists and the user chose milestone linkage:**
+
 - Read the resolved roadmap artifact and list candidate milestones (prefer unchecked items)
 - Ask the user to pick one milestone (or type a custom one)
 - Store the selected milestone name and a 1-sentence rationale for inclusion in the plan file
@@ -242,6 +294,7 @@ Docs policy semantics:
 ### Step 1.4: Optional Branch / Worktree Setup
 
 **If `git.enabled = false` or `git.create_branches = false`:**
+
 - Skip all branch/worktree creation
 - Continue with the generated full plan file path under `paths.plans/<slug>.md`
 
@@ -258,6 +311,7 @@ git worktree add ../${DIRNAME}-<branch-name-with-hyphens> <branch-name>
 Convert branch name for directory: replace `/` with `-`.
 
 **Example:**
+
 ```
 Project dir: my-project
 Branch: feature/user-auth
@@ -303,6 +357,7 @@ git checkout -b <branch-name>
 ```
 
 If branch already exists, ask user:
+
 - Switch to existing branch?
 - Create with different name?
 
@@ -337,12 +392,14 @@ AskUserQuestion: Before we start:
 ### Step 2: Analyze Requirements
 
 From the description, identify:
+
 - Core functionality to implement
 - Components/files that need changes
 - Dependencies between tasks
 - Edge cases to handle
 
 If requirements are ambiguous, ask clarifying questions:
+
 ```
 I need a few clarifications before creating the plan:
 1. [Specific question about scope]
@@ -378,6 +435,7 @@ Task(subagent_type: Explore, model: sonnet, prompt:
 **If full mode passed codebase reconnaissance** from Step 1 — use it as a starting point. Focus Explore agents on areas that need deeper understanding.
 
 **After agents return, synthesize:**
+
 - Which files need to be created/modified
 - What patterns to follow (from existing code)
 - Dependencies between components
@@ -390,27 +448,32 @@ Task(subagent_type: Explore, model: sonnet, prompt:
 Create tasks using `TaskCreate` with clear, actionable items.
 
 **Task Guidelines:**
+
 - Each task should be completable in one focused session
 - Tasks should be ordered by dependency (do X before Y)
 - Include file paths where changes will be made
 - Be specific about what to implement, not vague
 
 Use `TaskUpdate` to set `blockedBy` relationships:
+
 - Task 2 blocked by Task 1 if it depends on Task 1's output
 - Keep dependency chains logical
 
 ### Step 5: Save Plan to File
 
 **Determine plan file path:**
+
 - **Fast mode** → the resolved `paths.plan`
 - **Full mode** → `<configured plans dir>/<branch-or-slug>.md`
 
 **Before saving, ensure directory exists:**
+
 ```bash
 mkdir -p <configured plans dir>
 ```
 
 **Plan file must include:**
+
 - Title with feature name
 - Branch and creation date
 - `Settings` section (Testing, Logging, Docs)
@@ -420,16 +483,19 @@ mkdir -p <configured plans dir>
 - `Commit Plan` section when there are 5+ tasks
 
 If the resolved roadmap artifact exists:
+
 - If the user linked a milestone, write `## Roadmap Linkage` with `Milestone: "..."` and `Rationale: ...`
 - If the user skipped linkage, write `## Roadmap Linkage` with `Milestone: "none"` and `Rationale: "Skipped by user"`
 
 If the resolved research path exists:
+
 - Include `## Research Context` by copying only the `Active Summary` (do not paste full `Sessions`)
 - Keep it compact; it should be readable as a one-screen requirements snapshot
 
 Use the canonical template in `references/TASK-FORMAT.md` (Plan File Template).
 
 **Commit Plan Rules:**
+
 - **5+ tasks** → add commit checkpoints every 3-5 tasks
 - **Less than 5 tasks** → single commit at the end, no commit plan needed
 - Group logically related tasks into one commit
@@ -490,10 +556,12 @@ git worktree list
 ```
 
 For each worktree path:
+
 1. Check whether the resolved plans directory exists under that worktree (`<worktree>/<resolved paths.plans>`, default: `<worktree>/.ai-factory/plans/`) and contains any plan files
 2. Show name and whether it looks complete (has tasks) or is still in progress
 
 **Output format:**
+
 ```
 Active worktrees:
 
@@ -530,6 +598,7 @@ If the worktree path doesn't exist, check `git worktree list` and suggest the co
 ## Task Description Requirements
 
 Every `TaskCreate` item MUST include:
+
 - Clear deliverable and expected behavior
 - File paths to change/create
 - Logging requirements (what to log, where, and levels)
@@ -538,6 +607,7 @@ Every `TaskCreate` item MUST include:
 **Never create tasks without logging instructions.**
 
 Use canonical examples in `references/TASK-FORMAT.md`:
+
 - TaskCreate Example
 - Logging Requirements Checklist
 
@@ -557,10 +627,12 @@ Use canonical examples in `references/TASK-FORMAT.md`:
 ## Plan File Handling
 
 **Fast mode (`paths.plan`, default: `.ai-factory/PLAN.md`)**
+
 - Temporary plan for quick work
 - `/aif-implement` may offer deletion after completion
 
 **Full mode (`paths.plans/<branch-or-slug>.md`)**
+
 - Long-lived plan for feature delivery
 - Branch-scoped when a branch is created; slug-scoped when full mode runs without branch creation
 

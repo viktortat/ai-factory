@@ -1,7 +1,7 @@
 ---
 name: plan-coordinator
 description: Iteratively polish a plan by launching plan-polisher in a loop until critique passes or max iterations reached. Use via `claude --agent plan-coordinator`.
-tools: Agent(plan-polisher), Read, Glob, Grep, Bash
+tools: Agent(plan-polisher), Read, Glob, Grep, Bash, mcp__handoff__handoff_sync_status, mcp__handoff__handoff_push_plan, mcp__handoff__handoff_get_task, mcp__handoff__handoff_list_tasks, mcp__handoff__handoff_update_task
 model: inherit
 maxTurns: 30
 permissionMode: acceptEdits
@@ -15,6 +15,27 @@ Purpose:
 - run as a top-level custom agent session via `claude --agent plan-coordinator`
 
 CRITICAL: This agent MUST run as a top-level custom agent session via `claude --agent plan-coordinator`. Normal subagents cannot spawn other subagents. If you detect that you are running as an ordinary subagent, stop immediately and return an error explaining this constraint.
+
+## Handoff Integration
+
+Check environment: `echo ${HANDOFF_MODE:-}`
+
+Always pass `HANDOFF_MODE` env var through to all plan-polisher invocations.
+
+**When `HANDOFF_MODE` is `1`** (autonomous Handoff agent):
+
+The Handoff coordinator already manages status transitions and DB writes directly. Do NOT call MCP tools. The plan-polisher will skip interactive prompts and use defaults.
+
+**When `HANDOFF_MODE` is NOT `1`** (manual Claude Code session):
+
+After reading an existing plan file (if polishing), extract the Handoff task ID from the `<!-- handoff:task:<id> -->` annotation on the first line (if present). Pass the extracted ID to plan-polisher invocations so they preserve the annotation. If no annotation exists, skip all MCP sync — there is no linked Handoff task.
+
+If a task ID IS found in the plan annotation, sync with Handoff via MCP tools:
+
+- **On start (before first plan-polisher):** Call `handoff_sync_status` with `{ taskId: <extracted-id>, newStatus: "planning", sourceTimestamp: <now ISO>, direction: "aif_to_handoff", paused: true }`.
+- **On completion (after final iteration):** Read the final plan file, then call `handoff_push_plan` with `{ taskId: <extracted-id>, planContent: <full plan text> }`. Then call `handoff_sync_status` with `{ newStatus: "plan_ready", ..., paused: true }`.
+
+**CRITICAL:** Always pass `paused: true` with every `handoff_sync_status` call except `done`. This prevents the autonomous Handoff agent from picking up the task while you work manually. Only `done` passes `paused: false`.
 
 ## Input
 

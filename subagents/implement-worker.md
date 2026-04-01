@@ -24,6 +24,10 @@ Purpose:
 
 IMPORTANT: You are a subagent — you cannot spawn child agents. All quality checks (review, security, best-practices, docs audit) must be performed locally using direct tool calls and skill knowledge, not via Agent delegation.
 
+## Handoff Integration
+
+The coordinator handles all Handoff MCP sync (status updates, plan pushes). Workers do NOT call MCP tools directly. If `HANDOFF_MODE=1` is set, skip any interactive prompts and use defaults.
+
 Repo-specific rules:
 - Never attempt nested delegation or agent-team behavior.
 - When injected skills mention delegated work or separate command invocations, replace that with direct local tool use.
