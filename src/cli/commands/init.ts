@@ -254,7 +254,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
       .filter(Boolean)
       .join('; ');
 
-    console.log(chalk.dim(`  ${installedAgents.length + 1}. Use the agent-specific AI Factory workflow commands${invocationHints ? ` (${invocationHints})` : ''}`));
+    console.log(chalk.dim(`  ${installedAgents.length + 1}. Use /aif-plan and /aif-commit for daily workflow${invocationHints ? ` (${invocationHints})` : ''}`));
     console.log('');
 
   } catch (error) {
