@@ -61,6 +61,10 @@ export function simplifyFrontmatter(content: string): string {
   return content.replace(/^---\n[\s\S]*?\n---/, newFrontmatter);
 }
 
+export function removeFrontmatter(content: string): string {
+  return content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+}
+
 const INVOCATION_PATTERN = /(^|[^A-Za-z0-9_-])\/(aif(?:-[a-z0-9-]+)?)/g;
 
 export function rewriteInvocationPrefix(

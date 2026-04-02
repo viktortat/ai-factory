@@ -181,6 +181,51 @@ assert_not_exists "$AG_PROJECT_DIR/.agent/skills/aif-docs/references/stale.md" "
 echo "antigravity force smoke tests passed"
 
 # -------------------------------------------------------------------
+# Kilo Code workflow smoke: action skills should install as workflows
+# and no longer remain under .kilocode/skills/.
+# -------------------------------------------------------------------
+
+KILO_PROJECT_DIR="$TMPDIR/update-smoke-kilocode"
+mkdir -p "$KILO_PROJECT_DIR"
+
+cat > "$KILO_PROJECT_DIR/.ai-factory.json" << 'EOF'
+{
+  "version": "2.4.0",
+  "agents": [
+    {
+      "id": "kilocode",
+      "skillsDir": ".kilocode/skills",
+      "installedSkills": ["aif", "aif-plan", "aif-commit", "aif-docs"],
+      "mcp": {
+        "github": false,
+        "filesystem": false,
+        "postgres": false,
+        "chromeDevtools": false,
+        "playwright": false
+      }
+    }
+  ],
+  "extensions": []
+}
+EOF
+
+KILO_OUTPUT="$TMPDIR/update-kilocode.log"
+
+(cd "$KILO_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" update > "$KILO_OUTPUT" 2>&1)
+
+assert_contains "$KILO_OUTPUT" "\[kilocode\] Status:" "kilocode status section must be printed"
+assert_exists "$KILO_PROJECT_DIR/.kilocode/workflows/aif.md" "aif workflow must be installed for Kilo Code"
+assert_exists "$KILO_PROJECT_DIR/.kilocode/workflows/aif-plan.md" "aif-plan workflow must be installed for Kilo Code"
+assert_exists "$KILO_PROJECT_DIR/.kilocode/workflows/aif-commit.md" "aif-commit workflow must be installed for Kilo Code"
+assert_contains "$KILO_PROJECT_DIR/.kilocode/workflows/aif-plan.md" "/aif:[a-z-]+" "Kilo workflow content must use Kilo invocation syntax"
+assert_exists "$KILO_PROJECT_DIR/.kilocode/skills/aif-docs/SKILL.md" "non-workflow Kilo skills must remain in skills/"
+assert_not_exists "$KILO_PROJECT_DIR/.kilocode/skills/aif" "workflow skill should not remain in skills/"
+assert_not_exists "$KILO_PROJECT_DIR/.kilocode/skills/aif-plan" "workflow skill should not remain in skills/"
+assert_not_exists "$KILO_PROJECT_DIR/.kilocode/skills/aif-commit" "workflow skill should not remain in skills/"
+
+echo "kilocode workflow smoke tests passed"
+
+# -------------------------------------------------------------------
 # Claude subagents smoke: update should install bundled subagents,
 # persist subagent state in config, and heal local drift.
 # -------------------------------------------------------------------

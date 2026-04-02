@@ -21,7 +21,7 @@ AI Factory works with any AI coding agent. During `ai-factory init`, you choose 
 | Cursor | `.cursor/` | `.cursor/skills/` |
 | Windsurf | `.windsurf/` | `.windsurf/skills/` |
 | Roo Code | `.roo/` | `.roo/skills/` |
-| Kilo Code | `.kilocode/` | `.kilocode/skills/` |
+| Kilo Code | `.kilocode/` | `.kilocode/skills/`, `.kilocode/workflows/` |
 | Antigravity | `.agent/` | `.agent/skills/`, `.agent/workflows/` |
 | OpenCode | `.opencode/` | `.opencode/skills/` |
 | Warp | `.warp/` | `.warp/skills/` |
