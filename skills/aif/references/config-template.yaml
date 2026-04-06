@@ -105,6 +105,12 @@ paths:
   # Default: .ai-factory/rules/
   rules: .ai-factory/rules/
 
+  # QA artifacts root directory
+  # /aif-qa stores change-summary, test-plan, and test-cases here,
+  # using the branch slug as a subdirectory: <qa>/<branch>/
+  # Default: .ai-factory/qa/
+  qa: .ai-factory/qa/
+
 # =============================================================================
 # Workflow Settings
 # =============================================================================

@@ -120,6 +120,7 @@ paths:
   evolution: .ai-factory/evolution/
   specs: .ai-factory/specs/
   rules: .ai-factory/rules/
+  qa: .ai-factory/qa/
 
 # Workflow Settings
 workflow:
@@ -148,7 +149,7 @@ rules:
 
 **Current config-aware skills** read `config.yaml` at Step 0. This currently includes:
 - Core workflow and quality commands: `/aif`, `/aif-plan`, `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-review`, `/aif-roadmap`, `/aif-explore`, `/aif-loop`, `/aif-rules`
-- Additional utility commands: `/aif-architecture`, `/aif-docs`, `/aif-fix`, `/aif-improve`, `/aif-evolve`, `/aif-reference`, `/aif-security-checklist`
+- Additional utility commands: `/aif-architecture`, `/aif-docs`, `/aif-fix`, `/aif-improve`, `/aif-evolve`, `/aif-reference`, `/aif-security-checklist`, `/aif-qa`
 
 Other skills are config-agnostic for now and rely on repository context, explicit arguments, or fixed non-configurable paths such as `skill-context`.
 
@@ -161,6 +162,7 @@ Current config-agnostic built-ins include `/aif-best-practices`, `/aif-build-aut
 - `git.skip_push_after_commit: true` makes `/aif-commit` stop after local commit without showing push prompt.
 - `paths.plan` remains the default fast-plan file. If you prefer fast plans inside `paths.plans/`, change `paths.plan` manually in `config.yaml`.
 - `paths.docs` controls where `/aif-docs` writes the detailed documentation pages. `README.md` remains the landing page in the project root.
+- `paths.qa` controls where `/aif-qa` stores QA artifacts. Branch slug is appended automatically: `<paths.qa>/<branch>/change-summary.md`, `test-plan.md`, `test-cases.md`.
 
 **Current schema limits:** `config.yaml` still leaves `.ai-factory/skill-context/` fixed by command contract. `README.md` and `docs-html/` remain fixed by current documentation workflow.
 
@@ -281,12 +283,17 @@ your-project/
 │   ├── evolutions/            # Evolution logs (from /aif-evolve)
 │   │   ├── 2026-02-08-10.00.md
 │   │   └── patch-cursor.json  # Incremental evolve cursor (latest processed patch)
-│   └── evolution/             # Active reflex loop state (from /aif-loop)
-│       ├── current.json
-│       └── <task-alias>/
-│           ├── run.json
-│           ├── history.jsonl
-│           └── artifact.md
+│   ├── evolution/             # Active reflex loop state (from /aif-loop)
+│   │   ├── current.json
+│   │   └── <task-alias>/
+│   │       ├── run.json
+│   │       ├── history.jsonl
+│   │       └── artifact.md
+│   └── qa/                    # QA artifacts (from /aif-qa)
+│       └── <branch-name>/
+│           ├── change-summary.md
+│           ├── test-plan.md
+│           └── test-cases.md
 ├── .mcp.json                  # MCP servers config (Claude Code project scope)
 └── .ai-factory.json           # AI Factory config
 ```

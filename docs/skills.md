@@ -2,7 +2,7 @@
 
 # Core Skills
 
-**Config-aware skills read `.ai-factory/config.yaml` at startup** to resolve paths, language settings, workflow preferences, and rules hierarchy. The current config-aware set is `/aif`, `/aif-plan`, `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-review`, `/aif-roadmap`, `/aif-explore`, `/aif-loop`, `/aif-rules`, `/aif-architecture`, `/aif-docs`, `/aif-fix`, `/aif-improve`, `/aif-evolve`, `/aif-reference`, and `/aif-security-checklist`.
+**Config-aware skills read `.ai-factory/config.yaml` at startup** to resolve paths, language settings, workflow preferences, and rules hierarchy. The current config-aware set is `/aif`, `/aif-plan`, `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-review`, `/aif-roadmap`, `/aif-explore`, `/aif-loop`, `/aif-rules`, `/aif-architecture`, `/aif-docs`, `/aif-fix`, `/aif-improve`, `/aif-evolve`, `/aif-reference`, `/aif-security-checklist`, and `/aif-qa`.
 
 Config-agnostic built-ins in the current model: `/aif-best-practices`, `/aif-build-automation`, `/aif-ci`, `/aif-dockerize`, `/aif-grounded`, and `/aif-skill-generator`.
 
@@ -485,6 +485,33 @@ Each category includes a checklist, vulnerable/safe code examples (TypeScript, P
 - Reads `.ai-factory/config.yaml` for `paths.security` and `language.ui`
 
 - Config policy: config-aware; persistent ignore state uses `paths.security`
+
+### `/aif-qa [--all] [change-summary | test-plan | test-cases] [<branch>]`
+
+Three-stage QA workflow for manual testing of a feature or fix:
+
+```
+/aif-qa change-summary          # Analyze what changed on current branch
+/aif-qa change-summary feat/x   # Analyze a specific branch
+/aif-qa test-plan               # Create test plan (requires change-summary artifact)
+/aif-qa test-cases              # Write test cases (requires test-plan artifact)
+/aif-qa --all                   # Run all three stages in sequence
+/aif-qa --all feat/x            # Full pipeline for a specific branch
+```
+
+Each stage builds on the previous one and saves its artifact to `paths.qa/<branch>/`:
+
+| Stage            | Artifact            | What it produces                                    |
+|------------------|---------------------|-----------------------------------------------------|
+| `change-summary` | `change-summary.md` | Risk-annotated summary of git changes               |
+| `test-plan`      | `test-plan.md`      | Scoped test plan with types and acceptance criteria |
+| `test-cases`     | `test-cases.md`     | Concrete TC-NNN scenarios with steps and test data  |
+
+For large branches the `change-summary` stage checks commit count (>20) and diff size (>1000 lines) before proceeding — both gates ask the user how to continue rather than silently truncating.
+
+The `--all` flag runs all three stages in sequence without inter-stage prompts. If any stage fails, the pipeline stops and reports the failing stage.
+
+- Config policy: config-aware; reads `paths.description`, `paths.architecture`, `paths.qa`, `language.ui`, `git.base_branch`
 
 ## See Also
 
