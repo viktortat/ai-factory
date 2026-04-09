@@ -6,7 +6,7 @@ import { saveConfig, configExists, loadConfig, getCurrentVersion, type AgentInst
 import { configureMcp, getMcpInstructions } from '../../core/mcp.js';
 import { getAgentConfig, getAvailableAgentIds } from '../../core/agents.js';
 import { cleanupAgentSetup, getAgentOnboarding } from '../../core/transformer.js';
-import { removeDirectory, removeFile } from '../../utils/fs.js';
+import { removeDirectory, removeFile, copyFile, fileExists, getSkillsDir } from '../../utils/fs.js';
 import { applyExtensionInjections } from '../../core/injections.js';
 import { collectReplacedSkills } from '../../core/extension-ops.js';
 
@@ -14,6 +14,7 @@ export interface InitOptions {
   agents?: string;
   mcp?: string;
   skills?: string | boolean;
+  config?: boolean;
 }
 
 const VALID_MCP_KEYS: Record<string, string> = {
@@ -209,6 +210,18 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     });
 
     console.log(chalk.green('✓ Configuration saved to .ai-factory.json'));
+
+    if (options.config) {
+      const configDest = path.join(projectDir, '.ai-factory', 'config.yaml');
+      const configAlreadyExists = await fileExists(configDest);
+      if (configAlreadyExists) {
+        console.log(chalk.yellow('⚠ .ai-factory/config.yaml already exists, skipping (use --force to overwrite)'));
+      } else {
+        const templateSrc = path.join(getSkillsDir(), 'aif', 'references', 'config-template.yaml');
+        await copyFile(templateSrc, configDest);
+        console.log(chalk.green('✓ Default config.yaml created in .ai-factory/'));
+      }
+    }
 
     console.log(chalk.bold.green('\n✅ Setup complete!\n'));
 
