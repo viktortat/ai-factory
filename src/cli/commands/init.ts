@@ -8,7 +8,11 @@ import { getAgentConfig, getAvailableAgentIds, hydrateProjectAgentRegistry } fro
 import { cleanupAgentSetup, getAgentOnboarding } from '../../core/transformer.js';
 import { removeDirectory, removeFile, copyFile, fileExists, getSkillsDir } from '../../utils/fs.js';
 import { applyExtensionInjections } from '../../core/injections.js';
-import { collectReplacedSkills, installExtensionAgentFilesForAllAgents } from '../../core/extension-ops.js';
+import {
+  assertNoAgentFileConflicts,
+  collectReplacedSkills,
+  installExtensionAgentFilesForAllAgents,
+} from '../../core/extension-ops.js';
 import { loadAllExtensions } from '../../core/extensions.js';
 
 export interface InitOptions {
@@ -191,7 +195,17 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     // Re-apply extension injections after skill installation
     if (existingExtensions.length > 0) {
       const loadedExtensions = await loadAllExtensions(projectDir, existingExtensions.map(extension => extension.name));
+      const conflictCheckConfig = existingConfig ?? {
+        version: getCurrentVersion(),
+        agents: installedAgents,
+        extensions: existingExtensions,
+      };
       for (const { dir, manifest } of loadedExtensions) {
+        await assertNoAgentFileConflicts(projectDir, {
+          ...conflictCheckConfig,
+          extensions: existingExtensions,
+          agents: installedAgents,
+        }, manifest);
         await installExtensionAgentFilesForAllAgents(projectDir, installedAgents, dir, manifest);
       }
 

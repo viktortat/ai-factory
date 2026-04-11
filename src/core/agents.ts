@@ -244,6 +244,9 @@ export function registerRuntimeDefinitions(
       throw new Error(`Extension "${extensionName}" cannot redefine built-in runtime "${definition.id}".`);
     }
 
+    // The registry is reset before each hydrate, but this still guards
+    // collisions between different installed extensions and any extra
+    // manifests being validated in the same hydration pass.
     const existing = extensionAgentRegistry.get(definition.id);
     if (existing && existing.extensionName !== extensionName) {
       throw new Error(

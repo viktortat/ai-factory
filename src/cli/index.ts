@@ -5,7 +5,6 @@ import { upgradeCommand } from './commands/upgrade.js';
 import { extensionAddCommand, extensionRemoveCommand, extensionListCommand, extensionUpdateCommand } from './commands/extension.js';
 import { getCurrentVersion, loadConfig } from '../core/config.js';
 import { loadAllExtensions } from '../core/extensions.js';
-import { hydrateProjectAgentRegistry, resetExtensionAgentRegistry } from '../core/agents.js';
 
 const program = new Command();
 
@@ -87,19 +86,5 @@ async function loadExtensionCommands(): Promise<void> {
   }
 }
 
-async function bootstrapProjectAgentRegistry(): Promise<void> {
-  try {
-    const projectDir = process.cwd();
-    const config = await loadConfig(projectDir);
-    await hydrateProjectAgentRegistry(projectDir, {
-      extensionNames: config?.extensions?.map(extension => extension.name) ?? [],
-    });
-  } catch (err) {
-    resetExtensionAgentRegistry();
-    console.error(`Warning: Failed to hydrate extension-defined runtimes: ${(err as Error).message}`);
-  }
-}
-
-await bootstrapProjectAgentRegistry();
 await loadExtensionCommands();
 program.parse();

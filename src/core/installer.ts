@@ -1,4 +1,5 @@
 import path from 'path';
+import { existsSync, lstatSync } from 'fs';
 import { createHash } from 'crypto';
 import {
   copyDirectory,
@@ -44,7 +45,7 @@ export interface SubagentUpdateEntry {
 }
 
 export interface UpdateSubagentsResult {
-  installedSubagents: string[];
+  installedAgentFiles: string[];
   entries: SubagentUpdateEntry[];
 }
 
@@ -178,6 +179,14 @@ function resolveSkillPaths(
 
 function ensureTargetWithinRoot(targetRoot: string, targetFile: string): void {
   const resolvedRoot = path.resolve(targetRoot);
+
+  // Reject a symlinked root when it already exists so managed agent files
+  // cannot be redirected outside the project by replacing `.claude/agents`
+  // or another runtime-local agents directory with a symlink.
+  if (existsSync(resolvedRoot) && lstatSync(resolvedRoot).isSymbolicLink()) {
+    throw new Error(`Agent files directory must not be a symbolic link: ${targetRoot}`);
+  }
+
   const resolvedTarget = path.resolve(targetFile);
 
   if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`)) {
@@ -683,7 +692,7 @@ export async function updateSubagents(
 ): Promise<UpdateSubagentsResult> {
   if (!agentInstallation.agentsDir) {
     return {
-      installedSubagents: [],
+      installedAgentFiles: [],
       entries: [],
     };
   }
@@ -692,7 +701,7 @@ export async function updateSubagents(
   const sourceRoot = getBundledAgentFilesSourceDir(agentInstallation.id);
   if (!sourceRoot) {
     return {
-      installedSubagents: [],
+      installedAgentFiles: [],
       entries: [],
     };
   }
@@ -803,9 +812,19 @@ export async function updateSubagents(
   const syncedSubagents = availableSubagents.filter(relPath => installedSet.has(relPath) || previousInstalledSet.has(relPath));
 
   return {
-    installedSubagents: syncedSubagents,
+    installedAgentFiles: syncedSubagents,
     entries,
   };
+}
+
+export class AgentFileInstallError extends Error {
+  installedTargets: string[];
+
+  constructor(message: string, installedTargets: string[]) {
+    super(message);
+    this.name = 'AgentFileInstallError';
+    this.installedTargets = installedTargets;
+  }
 }
 
 export async function installExtensionAgentFiles(
@@ -837,8 +856,9 @@ export async function installExtensionAgentFiles(
       await copyFile(paths.sourceFile, paths.targetFile);
       installed.push(agentFile.target);
     } catch (error) {
-      console.warn(
-        `Warning: Could not install extension agent file "${agentFile.target}" for runtime "${agentInstallation.id}": ${error}`,
+      throw new AgentFileInstallError(
+        `Could not install extension agent file "${agentFile.target}" for runtime "${agentInstallation.id}": ${(error as Error).message}`,
+        installed,
       );
     }
   }

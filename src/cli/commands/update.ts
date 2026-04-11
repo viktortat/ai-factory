@@ -245,7 +245,7 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
       skillEntriesByAgent.set(agent.id, result.entries);
 
       const subagentResult = await updateSubagents(agent, projectDir, { force });
-      agent.installedAgentFiles = subagentResult.installedSubagents;
+      agent.installedAgentFiles = subagentResult.installedAgentFiles;
       subagentEntriesByAgent.set(agent.id, subagentResult.entries);
     }
 

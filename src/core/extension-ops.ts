@@ -14,6 +14,7 @@ import {
   type ResolvedExtension,
 } from './extensions.js';
 import {
+  AgentFileInstallError,
   installSkills,
   getAvailableSkills,
   getAvailableSubagents,
@@ -123,13 +124,20 @@ export async function installExtensionAgentFilesForAllAgents(
   const results = new Map<string, string[]>();
 
   for (const agent of agents) {
-    const installed = await installExtensionAgentFiles(
-      projectDir,
-      agent,
-      extensionDir,
-      manifest.agentFiles ?? [],
-    );
-    results.set(agent.id, installed);
+    try {
+      const installed = await installExtensionAgentFiles(
+        projectDir,
+        agent,
+        extensionDir,
+        manifest.agentFiles ?? [],
+      );
+      results.set(agent.id, installed);
+    } catch (error) {
+      if (error instanceof AgentFileInstallError) {
+        results.set(agent.id, error.installedTargets);
+      }
+      throw error;
+    }
   }
 
   return results;
@@ -153,11 +161,11 @@ export async function removeExtensionAgentFilesForAllAgents(
   return results;
 }
 
-function getManifestRuntimeIds(manifest?: ExtensionManifest | null): string[] {
+export function getManifestRuntimeIds(manifest?: ExtensionManifest | null): string[] {
   return manifest?.agents?.map(agent => agent.id) ?? [];
 }
 
-function assertNoConfiguredRuntimeOrphans(
+export function assertNoConfiguredRuntimeOrphans(
   config: AiFactoryConfig,
   runtimeIds: string[],
   extensionName: string,
@@ -179,7 +187,7 @@ function assertNoConfiguredRuntimeOrphans(
   }
 }
 
-async function assertNoAgentFileConflicts(
+export async function assertNoAgentFileConflicts(
   projectDir: string,
   config: AiFactoryConfig,
   manifest: ExtensionManifest,

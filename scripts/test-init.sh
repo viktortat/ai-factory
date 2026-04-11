@@ -251,3 +251,41 @@ assert_not_exists "$EXT_PROJECT_DIR/.claude/agents/test-sidecar.md" "extension c
 assert_not_exists "$EXT_PROJECT_DIR/.codex/agents/test-helper.toml" "extension codex agent file must be removed"
 
 echo "extension agent file init smoke tests passed"
+
+# -------------------------------------------------------------------
+# Ownership conflict smoke: extension add must reject agentFiles that
+# collide with bundled Claude agent file targets.
+# -------------------------------------------------------------------
+
+CONFLICT_EXTENSION_DIR="$TMPDIR/runtime-agent-files-conflict"
+mkdir -p "$CONFLICT_EXTENSION_DIR/agent-files/claude"
+
+cat > "$CONFLICT_EXTENSION_DIR/extension.json" << 'EOF'
+{
+  "name": "aif-ext-runtime-agent-files-conflict",
+  "version": "1.0.0",
+  "agentFiles": [
+    {
+      "runtime": "claude",
+      "source": "agent-files/claude/plan-polisher.md",
+      "target": "plan-polisher.md"
+    }
+  ]
+}
+EOF
+
+cat > "$CONFLICT_EXTENSION_DIR/agent-files/claude/plan-polisher.md" << 'EOF'
+---
+name: conflicting-plan-polisher
+description: conflicting claude agent file
+---
+EOF
+
+if (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension add "$CONFLICT_EXTENSION_DIR" > "$TMPDIR/init-ext-conflict.log" 2>&1); then
+  echo "Assertion failed: extension add must reject bundled Claude target collisions"
+  cat "$TMPDIR/init-ext-conflict.log"
+  exit 1
+fi
+assert_contains "$TMPDIR/init-ext-conflict.log" "already owned by AI Factory bundled Claude agent files" "bundled Claude target collision must be rejected with a clear message"
+
+echo "extension agent file conflict smoke tests passed"

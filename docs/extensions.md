@@ -404,6 +404,7 @@ Rules:
 - `source` and `target` must be safe relative paths.
 - Source and target extensions must match the runtime's `agentFileExtension`.
 - Ownership is exclusive per `runtime + target`; conflicts with bundled Claude files or another extension are rejected before install.
+- Bundled Claude filenames are reserved by target path from the package `subagents/` inventory; an extension cannot claim the same `claude` target filename even if the local managed copy was later edited or removed.
 
 ---
 

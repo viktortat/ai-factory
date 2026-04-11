@@ -135,7 +135,7 @@ export async function fetchLatestNpmPackageVersion(packageName: string): Promise
     }
 
     const data = await response.json() as NpmRegistryVersionResponse;
-    if (typeof data.version !== 'string' || !isValidVersionString(data.version)) {
+    if (!isValidVersionString(data.version)) {
       logExtension('warn', 'npm package metadata missing version', {
         sourceType: 'npm',
         packageName,
@@ -253,7 +253,10 @@ export interface ExtensionManifest {
 }
 
 function isSafeRelativeAssetPath(filePath: string): boolean {
-  if (!filePath || path.isAbsolute(filePath)) {
+  const windowsDriveAbsolute = /^[a-zA-Z]:[\\/]/.test(filePath);
+  const windowsUncAbsolute = /^(\\\\|\/\/)/.test(filePath);
+
+  if (!filePath || path.isAbsolute(filePath) || windowsDriveAbsolute || windowsUncAbsolute) {
     return false;
   }
 
