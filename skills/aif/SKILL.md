@@ -123,7 +123,7 @@ Immediately after determining Mode 1, Mode 2, or Mode 3, resolve the project lan
 **Run-scoped language state:**
 - `language.ui` — use for all `AskUserQuestion` prompts, intermediate explanations, final summary, and next-step recommendations
 - `language.artifacts` — use for all setup-time text artifacts created in this run: `.ai-factory/DESCRIPTION.md`, `.ai-factory/rules/base.md`, `AGENTS.md`, and `.ai-factory/ARCHITECTURE.md` via `/aif-architecture`
-- `language.technical_terms` — keep current semantics: `keep`
+- `language.technical_terms` — preserve the existing value if it is already set; default to `keep` only when the key is missing
 
 **Resolution order for each missing key:**
 1. `.ai-factory/config.yaml`
@@ -137,7 +137,8 @@ Immediately after determining Mode 1, Mode 2, or Mode 3, resolve the project lan
 2. If both keys are already set, reuse them and do not ask again.
 3. If only one key is missing, resolve only that missing key via the priority order above. Ask the user only for the missing value if repository context is still insufficient.
 4. If both keys are missing and repository context is insufficient, the first user question after mode detection MUST be about `UI language`, and the second language question MUST be about `Artifact language`.
-5. Keep the resolved language state fixed for the entire `/aif` run. Do not generate setup-time text artifacts in a different language later in the same run.
+5. Preserve `language.technical_terms` from existing config when present; otherwise set it to `keep` when writing config.
+6. Keep the resolved language state fixed for the entire `/aif` run. Do not generate setup-time text artifacts in a different language later in the same run.
 
 All user-facing text examples below are structure examples only. Ask them in resolved `language.ui`, never hard-code English when another UI language was resolved.
 
@@ -189,7 +190,10 @@ Options:
 **Persist resolved settings in `.ai-factory/config.yaml`:**
 
 - Use `skills/aif/references/config-template.yaml` as the source template.
-- Preserve the inline comments so developers can edit `config.yaml` manually later.
+- If `.ai-factory/config.yaml` already exists, merge the resolved language values into the existing file instead of replacing the rest of the document.
+- Replace only `language.ui` and `language.artifacts`; preserve existing `language.technical_terms` if it is already set, otherwise default it to `keep`.
+- Preserve existing `paths.*`, `git.*`, `workflow.*`, `rules.*`, and any other non-language keys already present in the file.
+- Preserve the inline comments from the template so developers can edit `config.yaml` manually later.
 - Fill in the resolved values; do **not** replace the file with a stripped-down minimal YAML blob.
 - Write or update `.ai-factory/config.yaml` immediately after resolving the run-scoped language state.
 - This write MUST happen before writing the first setup artifact and before invoking `/aif-architecture`.
@@ -198,7 +202,7 @@ Options:
 language:
   ui: <resolved-ui-language>
   artifacts: <resolved-artifacts-language>
-  technical_terms: keep
+  technical_terms: <existing-value-or-keep-when-missing>
 
 paths:
   description: .ai-factory/DESCRIPTION.md
@@ -344,7 +348,8 @@ Proceed? [Y/n]
 
 1. Create directory: `mkdir -p .ai-factory`
 2. **Create config.yaml first** (from language resolution step):
-   - Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml`, preserving comments and filling in the resolved values
+   - Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml`, merging resolved language keys into any existing config while preserving comments and non-language sections
+   - Preserve existing `language.technical_terms` when present; default it to `keep` only if the key is missing
    - Keep the resolved `language.ui` / `language.artifacts` values as the source of truth for the rest of the run
 3. Save `.ai-factory/DESCRIPTION.md` in resolved `language.artifacts`
 4. **Create rules/base.md**:
@@ -421,8 +426,8 @@ After user confirms choices, create specification in resolved `language.artifact
 - [Localized label: Security]: [relevant security considerations]
 ```
 
-Save to `.ai-factory/DESCRIPTION.md`.
 Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml` before saving this file.
+Save to `.ai-factory/DESCRIPTION.md`.
 
 ```bash
 mkdir -p .ai-factory
@@ -646,18 +651,18 @@ Present the completion summary and next-step recommendations in resolved `langua
 **For existing projects (Mode 1), also suggest next steps:**
 
 Present these suggestions in resolved `language.ui`:
-- `/aif-docs` — Generate project documentation
-- `/aif-rules` — Add project-specific rules and conventions
-- `/aif-build-automation` — Configure build scripts and automation
-- `/aif-ci` — Set up CI/CD pipeline
-- `/aif-dockerize` — Containerize the project
+- `/aif-docs` — [Localized documentation recommendation in `language.ui`]
+- `/aif-rules` — [Localized rules recommendation in `language.ui`]
+- `/aif-build-automation` — [Localized build-automation recommendation in `language.ui`]
+- `/aif-ci` — [Localized CI recommendation in `language.ui`]
+- `/aif-dockerize` — [Localized containerization recommendation in `language.ui`]
 
 Present these as `AskUserQuestion` with multi-select options:
-1. Generate docs (`/aif-docs`)
-2. Build automation (`/aif-build-automation`)
-3. CI/CD (`/aif-ci`)
-4. Dockerize (`/aif-dockerize`)
-5. Skip — I'll do it later
+1. [Localized docs option label in `language.ui`] (`/aif-docs`)
+2. [Localized build-automation option label in `language.ui`] (`/aif-build-automation`)
+3. [Localized CI option label in `language.ui`] (`/aif-ci`)
+4. [Localized docker option label in `language.ui`] (`/aif-dockerize`)
+5. [Localized skip option label in `language.ui`]
 
 If user selects one or more → invoke the selected skills sequentially.
 If user skips → done.

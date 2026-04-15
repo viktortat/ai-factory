@@ -30,7 +30,9 @@ During setup, `/aif` resolves `language.ui` and `language.artifacts` immediately
 
 - If both language keys already exist in `config.yaml`, `/aif` reuses them and does not ask again.
 - If only one language key exists, `/aif` keeps the existing value and resolves only the missing key via `config.yaml` → `AGENTS.md` → `CLAUDE.md` → `RULES.md` → user question.
-- After language resolution, `/aif` refreshes `config.yaml` from `skills/aif/references/config-template.yaml` before writing `.ai-factory/DESCRIPTION.md`, `.ai-factory/rules/base.md`, `AGENTS.md`, or invoking `/aif-architecture`.
+- When `.ai-factory/config.yaml` already exists, `/aif` merges the resolved `language.ui` / `language.artifacts` values into the existing file and preserves other sections such as `paths.*`, `git.*`, `workflow.*`, and `rules.*`.
+- `/aif` preserves an existing `language.technical_terms` value and defaults it to `keep` only when the key is missing.
+- After language resolution, `/aif` updates `config.yaml` from `skills/aif/references/config-template.yaml` before writing `.ai-factory/DESCRIPTION.md`, `.ai-factory/rules/base.md`, `AGENTS.md`, or invoking `/aif-architecture`.
 - This ordering keeps all setup-time artifacts in a single run aligned to one `language.artifacts` value, while prompts, questions, summaries, and next-step guidance use `language.ui`.
 
 ## Schema Summary
@@ -51,7 +53,7 @@ During setup, `/aif` resolves `language.ui` and `language.artifacts` immediately
 |-----|---------|----------------|-------|
 | `language.ui` | `en` | `/aif`, `/aif-architecture`, `/aif-plan`, `/aif-explore`, `/aif-roadmap`, `/aif-implement`, `/aif-verify`, `/aif-review`, `/aif-commit`, `/aif-fix`, `/aif-improve`, `/aif-loop`, `/aif-docs`, `/aif-evolve`, `/aif-reference`, `/aif-rules`, `/aif-security-checklist` | UI language for prompts, questions, and summaries; `/aif` resolves it before downstream setup questions |
 | `language.artifacts` | `en` | `/aif`, `/aif-architecture`, `/aif-roadmap`, `/aif-implement`, `/aif-loop`, `/aif-docs`, `/aif-evolve` | Language for generated artifacts; `/aif` locks it before the first setup artifact so DESCRIPTION/rules base/AGENTS/ARCHITECTURE stay aligned in one run |
-| `language.technical_terms` | `keep` | No dedicated built-in reader yet | Present in schema and template; currently written by `/aif` and reserved for future translation policy |
+| `language.technical_terms` | `keep` | No dedicated built-in reader yet | Present in schema and template; `/aif` preserves an existing value when present and otherwise writes the default `keep`, while the wider translation policy stays reserved for future use |
 
 ### `paths`
 
@@ -107,7 +109,7 @@ During setup, `/aif` resolves `language.ui` and `language.artifacts` immediately
 
 | Skill | Reads config | Writes config | Write scope |
 |-------|--------------|---------------|-------------|
-| `/aif` | Yes | Yes | Creates or refreshes the whole `config.yaml` during setup, after early language resolution and before the first setup artifact |
+| `/aif` | Yes | Yes | Creates or refreshes `config.yaml` during setup by merging resolved language values into any existing file after early language resolution and before the first setup artifact |
 | `/aif-rules` | Yes | Yes, limited | Adds or updates `rules.<area>` registrations when creating area rules; may bootstrap a minimal config file when the first area rule is created |
 
 ### Config Readers
