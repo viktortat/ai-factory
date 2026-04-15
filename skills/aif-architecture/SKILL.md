@@ -18,6 +18,8 @@ Generate `.ai-factory/ARCHITECTURE.md` with architecture decisions tailored to t
 - **Paths:** `paths.description` and `paths.architecture`
 - **Language:** `language.ui` for prompts and `language.artifacts` for generated architecture content
 
+When invoked by `/aif`, assume `.ai-factory/config.yaml` has already been written for the current setup run and already contains the resolved `language.ui` / `language.artifacts` values.
+
 If config.yaml doesn't exist, use defaults:
 - DESCRIPTION.md: `.ai-factory/DESCRIPTION.md`
 - ARCHITECTURE.md: `.ai-factory/ARCHITECTURE.md`

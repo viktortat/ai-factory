@@ -211,6 +211,85 @@ else
     fail "found $DOTTED_REFS dotted invocations in docs"
 fi
 
+# /aif localization contract regression checks
+AIF_SKILL="$ROOT_DIR/skills/aif/SKILL.md"
+
+if grep -Fq 'Immediately after determining Mode 1, Mode 2, or Mode 3, resolve the project language settings for the entire `/aif` run.' "$AIF_SKILL"; then
+    pass "/aif resolves language immediately after mode detection"
+else
+    fail "/aif language resolution order missing immediate post-mode contract"
+fi
+
+if grep -Fq 'Write or update `.ai-factory/config.yaml` immediately after resolving the run-scoped language state.' "$AIF_SKILL" \
+   && grep -Fq 'This write MUST happen before writing the first setup artifact and before invoking `/aif-architecture`.' "$AIF_SKILL"; then
+    pass "/aif writes config before first artifact and /aif-architecture"
+else
+    fail "/aif config write ordering contract missing"
+fi
+
+if grep -Fq 'use for all `AskUserQuestion` prompts, intermediate explanations, final summary, and next-step recommendations' "$AIF_SKILL" \
+   && grep -Fq 'use for all setup-time text artifacts created in this run:' "$AIF_SKILL"; then
+    pass "/aif documents language.ui vs language.artifacts split"
+else
+    fail "/aif language.ui vs language.artifacts split missing"
+fi
+
+if grep -Fq 'After creating DESCRIPTION.md, resolve the project language settings.' "$AIF_SKILL"; then
+    fail "late language resolution wording reintroduced in /aif"
+else
+    pass "no late language resolution wording in /aif"
+fi
+
+if grep -Fq '[Enhanced, clear description of the project in English]' "$AIF_SKILL"; then
+    fail "hard-coded English DESCRIPTION placeholder reintroduced in /aif"
+else
+    pass "no hard-coded English DESCRIPTION placeholder in /aif"
+fi
+
+if grep -Fq '# [Localized project title in resolved artifacts language]' "$AIF_SKILL" \
+   && grep -Fq '## [Localized heading: Tech Stack]' "$AIF_SKILL" \
+   && grep -Fq '**[Localized label: Programming language]:** [user choice]' "$AIF_SKILL"; then
+    pass "/aif DESCRIPTION template uses localized artifact placeholders"
+else
+    fail "/aif DESCRIPTION template localization placeholders missing"
+fi
+
+if grep -Fq '# Project: [Project Name]' "$AIF_SKILL" \
+   || grep -Fq '## Overview' "$AIF_SKILL" \
+   || grep -Fq '## Core Features' "$AIF_SKILL" \
+   || grep -Fq '## Tech Stack' "$AIF_SKILL" \
+   || grep -Fq '## Architecture Notes' "$AIF_SKILL" \
+   || grep -Fq '## Non-Functional Requirements' "$AIF_SKILL"; then
+    fail "English DESCRIPTION template headings reintroduced in /aif"
+else
+    pass "no English DESCRIPTION template headings in /aif"
+fi
+
+if grep -Fq '| [Localized header: File] | [Localized header: Purpose] |' "$AIF_SKILL" \
+   && grep -Fq '| [Localized header: Document] | [Localized header: Path] | [Localized header: Description] |' "$AIF_SKILL" \
+   && grep -Fq '**[Localized label: Framework]:** [framework]' "$AIF_SKILL" \
+   && grep -Fq '[Localized shell-command decomposition rule in resolved artifacts language]' "$AIF_SKILL"; then
+    pass "/aif AGENTS template uses localized artifact placeholders"
+else
+    fail "/aif AGENTS template localization placeholders missing"
+fi
+
+if grep -Fq '| File | Purpose |' "$AIF_SKILL" \
+   || grep -Fq '| Document | Path | Description |' "$AIF_SKILL" \
+   || grep -Fq 'Project landing page' "$AIF_SKILL" \
+   || grep -Fq '**Programming language:** [language]' "$AIF_SKILL" \
+   || grep -Fq '**Framework:** [framework]' "$AIF_SKILL" \
+   || grep -Fq '**Database:** [database]' "$AIF_SKILL" \
+   || grep -Fq '**ORM:** [orm]' "$AIF_SKILL" \
+   || grep -Fq 'Never combine shell commands with `&&`, `||`, or `;`' "$AIF_SKILL" \
+   || grep -Fq -- '- Project description:' "$AIF_SKILL" \
+   || grep -Fq -- '- Skills installed:' "$AIF_SKILL" \
+   || grep -Fq -- '- Next steps:' "$AIF_SKILL"; then
+    fail "English AGENTS or UI summary template text reintroduced in /aif"
+else
+    pass "no English AGENTS or UI summary template text in /aif"
+fi
+
 # No hardcoded agent-specific values (must use {{template_vars}})
 # skills_dir patterns
 HARDCODED_SKILLS_DIR=$(grep -rE '\.(claude|cursor|codex|github|gemini|junie|qwen|windsurf|warp)/skills' "$ROOT_DIR/skills/" "$ROOT_DIR/subagents/" --include='*.md' 2>/dev/null | grep -v '{{' | wc -l | tr -d ' ' || true)
