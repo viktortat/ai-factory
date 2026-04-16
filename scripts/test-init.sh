@@ -108,6 +108,23 @@ EXPECTED_SUBAGENTS="$EXPECTED_SUBAGENTS" node -e "const fs=require('fs');const c
 echo "claude init smoke tests passed"
 
 # -------------------------------------------------------------------
+# Flat workflow install smoke: flat agents must receive references/
+# assets for workflow skills so helper scripts remain available after
+# installation.
+# -------------------------------------------------------------------
+
+FLAT_PROJECT_DIR="$TMPDIR/init-smoke-antigravity"
+mkdir -p "$FLAT_PROJECT_DIR"
+
+(cd "$FLAT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents antigravity --skills aif > "$TMPDIR/init-antigravity.log" 2>&1)
+
+assert_exists "$FLAT_PROJECT_DIR/.agent/workflows/aif.md" "antigravity init must install aif as a flat workflow"
+assert_exists "$FLAT_PROJECT_DIR/.agent/workflows/references/update-config.mjs" "flat workflow installs must include the config helper in references/"
+assert_exists "$FLAT_PROJECT_DIR/.agent/workflows/references/config-template.yaml" "flat workflow installs must include config template references"
+
+echo "flat workflow init smoke tests passed"
+
+# -------------------------------------------------------------------
 # Extension agent files + dynamic runtime smoke: init should accept
 # extension-defined runtimes in --agents, install agentFiles for
 # built-in and dynamic runtimes, refresh them on extension update,

@@ -16,9 +16,9 @@ Use it when you need to know:
 
 | Operation | Allowed writer | Scope |
 |-----------|----------------|-------|
-| Create the initial file | `/aif` | Whole file |
+| Create the initial file | `/aif` | Whole file from `skills/aif/references/config-template.yaml` |
 | Bootstrap config while adding the first area rule | `/aif-rules area:<name>` | Minimal config scaffold plus the new `rules.<area>` entry |
-| Refresh the file during setup reruns | `/aif` | Whole file |
+| Refresh the file during setup reruns | `/aif` | Managed keys only; preserve existing comments, manual edits outside targeted keys, unknown sections, and `rules.<area>` entries |
 | Register a new area rule | `/aif-rules area:<name>` | `rules.<area>` entry only |
 | Manual edits | Developer | Any key |
 
@@ -30,9 +30,10 @@ During setup, `/aif` resolves `language.ui` and `language.artifacts` immediately
 
 - If both language keys already exist in `config.yaml`, `/aif` reuses them and does not ask again.
 - If only one language key exists, `/aif` keeps the existing value and resolves only the missing key via `config.yaml` → `AGENTS.md` → `CLAUDE.md` → `RULES.md` → user question.
-- When `.ai-factory/config.yaml` already exists, `/aif` merges the resolved `language.ui` / `language.artifacts` values into the existing file and preserves other sections such as `paths.*`, `git.*`, `workflow.*`, and `rules.*`.
 - `/aif` preserves an existing `language.technical_terms` value and defaults it to `keep` only when the key is missing.
-- After language resolution, `/aif` updates `config.yaml` from `skills/aif/references/config-template.yaml` before writing `.ai-factory/DESCRIPTION.md`, `.ai-factory/rules/base.md`, `AGENTS.md`, or invoking `/aif-architecture`.
+- Initial creation starts from the full commented template at `skills/aif/references/config-template.yaml`.
+- When `.ai-factory/config.yaml` already exists, `/aif` updates only the managed subset (`language.*`, `paths.*`, `workflow.*`, selected `git.*`, and `rules.base`) and preserves comments, unknown sections, manual edits outside targeted keys, and existing `rules.<area>` entries.
+- After language resolution, `/aif` updates `config.yaml` via `skills/aif/references/update-config.mjs` before writing `.ai-factory/DESCRIPTION.md`, `.ai-factory/rules/base.md`, `AGENTS.md`, or invoking `/aif-architecture`.
 - This ordering keeps all setup-time artifacts in a single run aligned to one `language.artifacts` value, while prompts, questions, summaries, and next-step guidance use `language.ui`.
 
 ## Schema Summary
@@ -102,7 +103,7 @@ During setup, `/aif` resolves `language.ui` and `language.artifacts` immediately
 | Key | Default | Read by skills | Notes |
 |-----|---------|----------------|-------|
 | `rules.base` | `.ai-factory/rules/base.md` | `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-fix`, `/aif-evolve` | Base project rule file |
-| `rules.<area>` | none | `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-fix`, `/aif-evolve`; written by `/aif-rules area:<name>` | Named area rule entries like `rules.api`, `rules.frontend` |
+| `rules.<area>` | none | `/aif-implement`, `/aif-verify`, `/aif-commit`, `/aif-fix`, `/aif-evolve`; written by `/aif-rules area:<name>` | Named area rule entries like `rules.api`, `rules.frontend`; preserved during `/aif` reruns |
 
 ## Skill Matrix
 
@@ -110,7 +111,7 @@ During setup, `/aif` resolves `language.ui` and `language.artifacts` immediately
 
 | Skill | Reads config | Writes config | Write scope |
 |-------|--------------|---------------|-------------|
-| `/aif` | Yes | Yes | Creates or refreshes `config.yaml` during setup by merging resolved language values into any existing file after early language resolution and before the first setup artifact |
+| `/aif` | Yes | Yes | Creates the initial file from the commented template; reruns update only managed keys while preserving comments, custom edits outside targeted keys, unknown sections, and `rules.<area>` |
 | `/aif-rules` | Yes | Yes, limited | Adds or updates `rules.<area>` registrations when creating area rules; may bootstrap a minimal config file when the first area rule is created |
 
 ### Config Readers

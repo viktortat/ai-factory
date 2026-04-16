@@ -2,7 +2,7 @@
 name: aif
 description: Set up agent context for a project. Analyzes tech stack, installs relevant skills from skills.sh, generates custom skills, and configures MCP servers. Use when starting new project, setting up AI context, or asking "set up project", "configure AI", "what skills do I need".
 argument-hint: "[project description]"
-allowed-tools: Read Glob Grep Write Bash(mkdir *) Bash(npx skills *) Bash(python *security-scan*) Bash(rm -rf *) Skill WebFetch AskUserQuestion Questions
+allowed-tools: Read Glob Grep Write Bash(mkdir *) Bash(node *update-config.mjs*) Bash(npx skills *) Bash(python *security-scan*) Bash(rm -rf *) Skill WebFetch AskUserQuestion Questions
 ---
 
 # AI Factory - Project Setup
@@ -189,56 +189,63 @@ Options:
 
 **Persist resolved settings in `.ai-factory/config.yaml`:**
 
-- Use `skills/aif/references/config-template.yaml` as the source template.
-- If `.ai-factory/config.yaml` already exists, merge the resolved language values into the existing file instead of replacing the rest of the document.
-- Replace only `language.ui` and `language.artifacts`; preserve existing `language.technical_terms` if it is already set, otherwise default it to `keep`.
-- Preserve existing `paths.*`, `git.*`, `workflow.*`, `rules.*`, and any other non-language keys already present in the file.
-- Preserve the inline comments from the template so developers can edit `config.yaml` manually later.
-- Fill in the resolved values; do **not** replace the file with a stripped-down minimal YAML blob.
+- Never reconstruct `config.yaml` from memory or by free-writing YAML text.
+- Always use `skills/aif/references/update-config.mjs` with `skills/aif/references/config-template.yaml` as the canonical source.
 - Write or update `.ai-factory/config.yaml` immediately after resolving the run-scoped language state.
 - This write MUST happen before writing the first setup artifact and before invoking `/aif-architecture`.
+- Ensure `.ai-factory/` exists before writing the payload or target file.
+- First write a temporary payload file (for example `.ai-factory/config.update.json`) via `Write`.
+- Then invoke the helper:
 
-```yaml
-language:
-  ui: <resolved-ui-language>
-  artifacts: <resolved-artifacts-language>
-  technical_terms: <existing-value-or-keep-when-missing>
-
-paths:
-  description: .ai-factory/DESCRIPTION.md
-  architecture: .ai-factory/ARCHITECTURE.md
-  docs: docs/
-  roadmap: .ai-factory/ROADMAP.md
-  research: .ai-factory/RESEARCH.md
-  rules_file: .ai-factory/RULES.md
-  plan: .ai-factory/PLAN.md
-  plans: .ai-factory/plans/
-  fix_plan: .ai-factory/FIX_PLAN.md
-  security: .ai-factory/SECURITY.md
-  references: .ai-factory/references/
-  patches: .ai-factory/patches/
-  evolutions: .ai-factory/evolutions/
-  evolution: .ai-factory/evolution/
-  specs: .ai-factory/specs/
-  rules: .ai-factory/rules/
-
-workflow:
-  auto_create_dirs: true
-  plan_id_format: slug
-  analyze_updates_architecture: true
-  architecture_updates_roadmap: true
-  verify_mode: normal
-
-git:
-  enabled: <true-if-git-detected-else-false>
-  base_branch: <detected-base-branch-or-main>
-  create_branches: <true-or-false-based-on-user-choice>
-  branch_prefix: feature/
-  skip_push_after_commit: false
-
-rules:
-  base: .ai-factory/rules/base.md
+```bash
+node ~/{{skills_dir}}/aif/references/update-config.mjs \
+  --template ~/{{skills_dir}}/aif/references/config-template.yaml \
+  --target .ai-factory/config.yaml \
+  --payload .ai-factory/config.update.json
 ```
+
+- Use `mode: "create"` when `.ai-factory/config.yaml` does not exist.
+- Use `mode: "merge"` when `.ai-factory/config.yaml` already exists.
+- Preserve `language.technical_terms` from existing config when present; otherwise set it to `keep` when writing config.
+- In `set`, include only values explicitly resolved in the current run and that must be written now.
+- In `fillMissing`, include canonical defaults that should be backfilled only when the key or section is missing or incomplete.
+- Managed keys for this helper are limited to:
+  - `language.ui`
+  - `language.artifacts`
+  - `language.technical_terms`
+  - `paths.*` (including current schema keys such as `paths.qa`)
+  - `workflow.*`
+  - `git.enabled`
+  - `git.base_branch`
+  - `git.create_branches`
+  - `git.branch_prefix`
+  - `git.skip_push_after_commit`
+  - `rules.base`
+- Never normalize or overwrite `rules.<area>` entries. Those belong to `/aif-rules`.
+- The helper must preserve comments, blank lines, section order, inline comments, unknown sections, custom user values outside targeted keys, and the commented `rules.*` examples from the template.
+- If the helper reports an unsafe structure or invalid payload, STOP. Do **not** fall back to free-form YAML generation.
+- After the helper succeeds, remove the temporary payload file.
+
+**Payload shape:**
+
+```json
+{
+  "mode": "create|merge",
+  "set": {
+    "language.ui": "en",
+    "language.artifacts": "en",
+    "language.technical_terms": "keep",
+    "paths.qa": ".ai-factory/qa/"
+  },
+  "fillMissing": {
+    "git.branch_prefix": "feature/",
+    "rules.base": ".ai-factory/rules/base.md"
+  }
+}
+```
+
+- Initial create: pass the resolved canonical values through `set`.
+- Rerun merge: use `set` only for values re-resolved in this run; use `fillMissing` for canonical defaults that should be restored only when absent or incomplete.
 
 **Create `.ai-factory/rules/base.md` from codebase evidence:**
 
@@ -298,14 +305,18 @@ Read these files (if they exist):
 
 Resolve the run-scoped language state (see [Language Resolution](#language-resolution)) before generating any setup-time text artifact.
 
-**Step 3: Generate .ai-factory/DESCRIPTION.md**
+**Step 3: Persist config.yaml**
+
+Immediately after language resolution, create `.ai-factory/` if needed and write `.ai-factory/config.yaml` via `update-config.mjs`.
+
+**Step 4: Generate .ai-factory/DESCRIPTION.md**
 
 Based on analysis, create project specification in resolved `language.artifacts`:
 - Detected stack
 - Identified patterns
 - Architecture notes
 
-**Step 4: Recommend Skills & MCP**
+**Step 5: Recommend Skills & MCP**
 
 | Detection | Skills | MCP |
 |-----------|--------|-----|
@@ -314,13 +325,13 @@ Based on analysis, create project specification in resolved `language.artifacts`
 | GitHub repo (.git) | - | `github` |
 | Stripe/payments | `payment-flows` | - |
 
-**Step 5: Search skills.sh**
+**Step 6: Search skills.sh**
 
 ```bash
 npx skills search <relevant-keyword>
 ```
 
-**Step 6: Present Plan & Confirm**
+**Step 7: Present Plan & Confirm**
 
 Present this setup analysis and confirmation prompt in resolved `language.ui`.
 
@@ -344,18 +355,17 @@ Present this setup analysis and confirmation prompt in resolved `language.ui`.
 Proceed? [Y/n]
 ```
 
-**Step 7: Execute**
+**Step 8: Execute**
 
 1. Create directory: `mkdir -p .ai-factory`
-2. **Create config.yaml first** (from language resolution step):
-   - Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml`, merging resolved language keys into any existing config while preserving comments and non-language sections
-   - Preserve existing `language.technical_terms` when present; default it to `keep` only if the key is missing
-   - Keep the resolved `language.ui` / `language.artifacts` values as the source of truth for the rest of the run
-3. Save `.ai-factory/DESCRIPTION.md` in resolved `language.artifacts`
-4. **Create rules/base.md**:
+2. Write `.ai-factory/config.update.json` with helper payload (`mode: "create"` if config is missing, `mode: "merge"` if it already exists)
+3. Run `node ~/{{skills_dir}}/aif/references/update-config.mjs --template ~/{{skills_dir}}/aif/references/config-template.yaml --target .ai-factory/config.yaml --payload .ai-factory/config.update.json`
+4. Delete `.ai-factory/config.update.json` after the helper succeeds
+5. Save `.ai-factory/DESCRIPTION.md` in resolved `language.artifacts`
+6. **Create rules/base.md**:
    - Ensure `.ai-factory/rules/` directory exists
    - Write `.ai-factory/rules/base.md` with detected conventions in resolved `language.artifacts`
-5. For each external skill from skills.sh:
+7. For each external skill from skills.sh:
    ```bash
    npx skills install {{skills_cli_agent_flag}} <name>
    # AUTO-SCAN: immediately after install
@@ -364,10 +374,10 @@ Proceed? [Y/n]
    - Exit 1 (BLOCKED) → `rm -rf <path>`, warn user, skip this skill
    - Exit 2 (WARNINGS) → show to user, ask confirmation
    - Exit 0 (CLEAN) → read files yourself (Level 2), verify intent, proceed
-6. Generate custom skills via `/aif-skill-generator` (pass URLs for Learn Mode when docs are available)
-7. Configure MCP in `{{settings_file}}`
-8. Generate `AGENTS.md` in project root in resolved `language.artifacts` (see [AGENTS.md Generation](#agentsmd-generation))
-9. Generate architecture document via `/aif-architecture` only after config exists with resolved language settings (see [Architecture Generation](#architecture-generation))
+8. Generate custom skills via `/aif-skill-generator` (pass URLs for Learn Mode when docs are available)
+9. Configure MCP in `{{settings_file}}`
+10. Generate `AGENTS.md` in project root in resolved `language.artifacts` (see [AGENTS.md Generation](#agentsmd-generation))
+11. Generate architecture document via `/aif-architecture` only after config exists with resolved language settings (see [Architecture Generation](#architecture-generation))
 
 ---
 
@@ -379,7 +389,11 @@ Proceed? [Y/n]
 
 Immediately after reading `$ARGUMENTS`, resolve the run-scoped language state. If repository context is insufficient, the first user question after mode detection MUST be about `UI language` / `Artifact language`.
 
-**Step 2: Interactive Stack Selection**
+**Step 2: Persist config.yaml**
+
+Immediately after language resolution, create `.ai-factory/` if needed and write `.ai-factory/config.yaml` via `update-config.mjs`.
+
+**Step 3: Interactive Stack Selection**
 
 Based on project description, ask user to confirm stack choices.
 Show YOUR recommendation with "(Recommended)" label, tailored to the project type.
@@ -395,7 +409,7 @@ Ask about:
 - Explain WHY you recommend each choice based on the specific project type
 - Skip categories that don't apply (e.g., no database for a CLI tool, no framework for a library)
 
-**Step 3: Create .ai-factory/DESCRIPTION.md**
+**Step 4: Create .ai-factory/DESCRIPTION.md**
 
 After user confirms choices, create specification in resolved `language.artifacts`:
 
@@ -426,23 +440,18 @@ After user confirms choices, create specification in resolved `language.artifact
 - [Localized label: Security]: [relevant security considerations]
 ```
 
-Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml` before saving this file.
 Save to `.ai-factory/DESCRIPTION.md`.
 
-```bash
-mkdir -p .ai-factory
-```
-
-**Step 4: Search & Install Skills**
+**Step 5: Search & Install Skills**
 
 Based on confirmed stack:
 1. Search skills.sh for matching skills
 2. Plan custom skills for domain-specific needs
 3. Configure relevant MCP servers
 
-**Step 5: Setup Context**
+**Step 6: Setup Context**
 
-Install skills, configure MCP, generate `AGENTS.md` in resolved `language.artifacts`, and generate architecture document via `/aif-architecture` only after config has been written with resolved language values, as in Mode 1.
+Install skills, configure MCP, generate `AGENTS.md` in resolved `language.artifacts`, and generate architecture document via `/aif-architecture` after the earlier helper-driven config write, as in Mode 1.
 
 ---
 
@@ -454,7 +463,11 @@ Install skills, configure MCP, generate `AGENTS.md` in resolved `language.artifa
 
 Resolve the run-scoped language state before asking for the project description. If repository context is insufficient, the first user question after mode detection MUST be about `UI language` / `Artifact language`.
 
-**Step 2: Ask Project Description**
+**Step 2: Persist config.yaml**
+
+Immediately after language resolution, create `.ai-factory/` if needed and write `.ai-factory/config.yaml` via `update-config.mjs`.
+
+**Step 3: Ask Project Description**
 
 ```
 I don't see an existing project here. Let's set one up!
@@ -467,7 +480,7 @@ What kind of project are you building?
 
 Ask this prompt in resolved `language.ui`.
 
-**Step 3: Interactive Stack Selection**
+**Step 4: Interactive Stack Selection**
 
 After getting description, proceed with same stack selection as Mode 2:
 - Programming language (with recommendation)
@@ -475,13 +488,13 @@ After getting description, proceed with same stack selection as Mode 2:
 - Database (with recommendation)
 - ORM (with recommendation)
 
-**Step 4: Create .ai-factory/DESCRIPTION.md**
+**Step 5: Create .ai-factory/DESCRIPTION.md**
 
 Same as Mode 2, in resolved `language.artifacts`.
 
-**Step 5: Setup Context**
+**Step 6: Setup Context**
 
-Install skills, configure MCP, generate `AGENTS.md` in resolved `language.artifacts`, and generate architecture document via `/aif-architecture` only after config has been written with resolved language values, as in Mode 1.
+Install skills, configure MCP, generate `AGENTS.md` in resolved `language.artifacts`, and generate architecture document via `/aif-architecture` after the earlier helper-driven config write, as in Mode 1.
 
 ---
 

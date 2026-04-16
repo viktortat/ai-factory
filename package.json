@@ -58,7 +58,8 @@
       "types"
     ],
     "ignore": [
-      "examples/**"
+      "examples/**",
+      "skills/aif/references/update-config.mjs"
     ]
   },
   "engines": {
