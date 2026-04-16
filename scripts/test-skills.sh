@@ -373,6 +373,23 @@ else
 fi
 
 # ─────────────────────────────────────────────
+# Part 8: aif-qa skill smoke tests
+# ─────────────────────────────────────────────
+echo -e "\n${BOLD}=== aif-qa skill smoke tests ===${NC}\n"
+
+set +e
+QA_SMOKE_OUTPUT=$(bash "$ROOT_DIR/scripts/test-aif-qa.sh" 2>&1)
+QA_SMOKE_EXIT=$?
+set -e
+
+if [[ $QA_SMOKE_EXIT -eq 0 ]]; then
+    pass "aif-qa smoke tests"
+else
+    fail "aif-qa smoke tests"
+    echo "$QA_SMOKE_OUTPUT" | sed 's/^/      /'
+fi
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 echo -e "\n${BOLD}=== Results ===${NC}"
