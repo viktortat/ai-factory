@@ -8,6 +8,8 @@ AI Factory has two phases: **configuration** (one-time project setup) and the **
 
 Run once per project. Sets up context files that all workflow skills depend on.
 
+During `/aif`, the initial `.ai-factory/config.yaml` is created from the commented template, and setup reruns refresh only the managed keys so manual comments and unrelated customizations survive.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       PROJECT CONFIGURATION                             │

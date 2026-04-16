@@ -89,6 +89,7 @@ Artifact writers are command-scoped to prevent ownership conflicts:
 | Artifact                                                                                      | Primary writer command | Notes                                                                                            |
 |-----------------------------------------------------------------------------------------------|------------------------|--------------------------------------------------------------------------------------------------|
 | `.ai-factory/DESCRIPTION.md`                                                                  | `/aif`                 | `/aif-implement` may update only when implementation materially changed context facts            |
+| `.ai-factory/config.yaml`                                                                     | `/aif`                 | initial create uses the commented template; reruns refresh only managed keys and preserve comments/manual edits; `/aif-rules` owns `rules.<area>` |
 | `paths.architecture` (default: `.ai-factory/ARCHITECTURE.md`)                                 | `/aif-architecture`    | `/aif-implement` may update structure notes when structure changes                               |
 | `paths.roadmap` (default: `.ai-factory/ROADMAP.md`)                                           | `/aif-roadmap`         | `/aif-implement` may mark completed milestones with evidence                                     |
 | `paths.rules_file` (default: `.ai-factory/RULES.md`), `paths.rules/<area>.md`, `rules.<area>` | `/aif-rules`           | top-level conventions plus area-rule files and registration                                      |
@@ -129,7 +130,7 @@ Current config-agnostic built-ins:
 
 Current config keys in active use:
 
-- `paths.*` - artifact discovery for description, architecture, roadmap, research, RULES.md, plan files, fix plans, QA artifacts
+- `paths.*` - artifact discovery for description, architecture, roadmap, research, RULES.md, plan files, fix plans, QA artifacts,
   references, security state, patches, evolutions, loop state, and rules
 - `language.ui` / `language.artifacts` - prompt language vs generated artifact language
 - `git.enabled` / `git.base_branch` / `git.create_branches` / `git.branch_prefix` / `git.skip_push_after_commit` - planning, verification, and commit push behavior
@@ -175,6 +176,11 @@ Check: has arguments? has project files?
 │ Mode 3: Empty project (no args + no config files)           │
 │   → Ask "What are you building?" → Stack selection → Setup  │
 └─────────────────────────────────────────────────────────────┘
+    ↓
+/aif config.yaml contract
+    ↓
+Initial create → copy from `skills/aif/references/config-template.yaml` and set resolved values without dropping comments
+Rerun update → deterministic merge of managed keys only; preserve manual comments, unknown sections, and existing `rules.<area>`
     ↓
 /aif-architecture → Generate ARCHITECTURE.md
     ↓

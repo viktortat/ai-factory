@@ -214,10 +214,20 @@ fi
 # /aif localization contract regression checks
 AIF_SKILL="$ROOT_DIR/skills/aif/SKILL.md"
 AIF_ARCH_SKILL="$ROOT_DIR/skills/aif-architecture/SKILL.md"
-MODE2_DESCRIPTION_SECTION="$(awk '
-    /^\*\*Step 3: Create \.ai-factory\/DESCRIPTION\.md\*\*$/ { capture=1 }
+MODE1_SECTION="$(awk '
+    /^### Mode 1: Analyze Existing Project$/ { capture=1 }
     capture { print }
-    /^\*\*Step 4: Search & Install Skills\*\*$/ { if (capture) exit }
+    capture && /^---$/ { exit }
+' "$AIF_SKILL")"
+MODE2_SECTION="$(awk '
+    /^### Mode 2: New Project with Description$/ { capture=1 }
+    capture { print }
+    capture && /^---$/ { exit }
+' "$AIF_SKILL")"
+MODE3_SECTION="$(awk '
+    /^### Mode 3: Interactive New Project \(Empty Directory\)$/ { capture=1 }
+    capture { print }
+    capture && /^---$/ { exit }
 ' "$AIF_SKILL")"
 AGENTS_TEMPLATE_SECTION="$(awk '
     /^## AGENTS\.md Generation$/ { in_section=1 }
@@ -264,11 +274,19 @@ else
     fail "/aif config write ordering contract missing"
 fi
 
-if grep -Fq 'If `.ai-factory/config.yaml` already exists, merge the resolved language values into the existing file instead of replacing the rest of the document.' "$AIF_SKILL" \
-   && grep -Fq 'Preserve existing `paths.*`, `git.*`, `workflow.*`, `rules.*`, and any other non-language keys already present in the file.' "$AIF_SKILL"; then
-    pass "/aif preserves non-language config when updating resolved languages"
+if grep -Fq 'Never reconstruct `config.yaml` from memory or by free-writing YAML text.' "$AIF_SKILL" \
+   && grep -Fq 'Always use `skills/aif/references/update-config.mjs` with `skills/aif/references/config-template.yaml` as the canonical source.' "$AIF_SKILL" \
+   && grep -Fq 'If the helper reports an unsafe structure or invalid payload, STOP. Do **not** fall back to free-form YAML generation.' "$AIF_SKILL"; then
+    pass "/aif uses helper-only deterministic config updates"
 else
-    fail "/aif config merge contract missing for existing config"
+    fail "/aif helper-only config update contract missing"
+fi
+
+if grep -Fq '`paths.*` (including current schema keys such as `paths.qa`)' "$AIF_SKILL" \
+   && grep -Fq '"paths.qa": ".ai-factory/qa/"' "$AIF_SKILL"; then
+    pass "/aif helper contract includes current paths.qa schema"
+else
+    fail "/aif helper contract missing paths.qa coverage"
 fi
 
 if grep -Fq '`language.technical_terms` — preserve the existing value if it is already set; default to `keep` only when the key is missing' "$AIF_SKILL" \
@@ -297,28 +315,45 @@ else
     pass "no hard-coded English DESCRIPTION placeholder in /aif"
 fi
 
-if printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '# [Localized project title in resolved artifacts language]' \
-   && printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '## [Localized heading: Tech Stack]' \
-   && printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '**[Localized label: Programming language]:** [user choice]'; then
+if printf '%s\n' "$MODE2_SECTION" | grep -Fq '# [Localized project title in resolved artifacts language]' \
+   && printf '%s\n' "$MODE2_SECTION" | grep -Fq '## [Localized heading: Tech Stack]' \
+   && printf '%s\n' "$MODE2_SECTION" | grep -Fq '**[Localized label: Programming language]:** [user choice]'; then
     pass "/aif DESCRIPTION template uses localized artifact placeholders"
 else
     fail "/aif DESCRIPTION template localization placeholders missing"
 fi
 
-MODE2_CONFIG_LINE=$(printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -nF 'Write `.ai-factory/config.yaml` from `skills/aif/references/config-template.yaml` before saving this file.' | cut -d: -f1 | head -n1)
-MODE2_SAVE_LINE=$(printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -nF 'Save to `.ai-factory/DESCRIPTION.md`.' | cut -d: -f1 | head -n1)
-if [[ -n "$MODE2_CONFIG_LINE" && -n "$MODE2_SAVE_LINE" && "$MODE2_CONFIG_LINE" -lt "$MODE2_SAVE_LINE" ]]; then
-    pass "/aif Mode 2 writes config before saving DESCRIPTION.md"
+MODE1_PERSIST_LINE=$(printf '%s\n' "$MODE1_SECTION" | grep -nF '**Step 3: Persist config.yaml**' | cut -d: -f1 | head -n1)
+MODE1_DESCRIPTION_LINE=$(printf '%s\n' "$MODE1_SECTION" | grep -nF '**Step 4: Generate .ai-factory/DESCRIPTION.md**' | cut -d: -f1 | head -n1)
+if [[ -n "$MODE1_PERSIST_LINE" && -n "$MODE1_DESCRIPTION_LINE" && "$MODE1_PERSIST_LINE" -lt "$MODE1_DESCRIPTION_LINE" ]]; then
+    pass "/aif Mode 1 persists config before DESCRIPTION generation"
 else
-    fail "/aif Mode 2 DESCRIPTION/config ordering is wrong"
+    fail "/aif Mode 1 config/DESCRIPTION ordering is wrong"
 fi
 
-if printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '# Project: [Project Name]' \
-   || printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '## Overview' \
-   || printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '## Core Features' \
-   || printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '## Tech Stack' \
-   || printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '## Architecture Notes' \
-   || printf '%s\n' "$MODE2_DESCRIPTION_SECTION" | grep -Fq '## Non-Functional Requirements'; then
+MODE2_PERSIST_LINE=$(printf '%s\n' "$MODE2_SECTION" | grep -nF '**Step 2: Persist config.yaml**' | cut -d: -f1 | head -n1)
+MODE2_STACK_LINE=$(printf '%s\n' "$MODE2_SECTION" | grep -nF '**Step 3: Interactive Stack Selection**' | cut -d: -f1 | head -n1)
+MODE2_DESCRIPTION_LINE=$(printf '%s\n' "$MODE2_SECTION" | grep -nF '**Step 4: Create .ai-factory/DESCRIPTION.md**' | cut -d: -f1 | head -n1)
+if [[ -n "$MODE2_PERSIST_LINE" && -n "$MODE2_STACK_LINE" && -n "$MODE2_DESCRIPTION_LINE" && "$MODE2_PERSIST_LINE" -lt "$MODE2_STACK_LINE" && "$MODE2_STACK_LINE" -lt "$MODE2_DESCRIPTION_LINE" ]]; then
+    pass "/aif Mode 2 persists config immediately after language resolution"
+else
+    fail "/aif Mode 2 config timing is wrong"
+fi
+
+MODE3_PERSIST_LINE=$(printf '%s\n' "$MODE3_SECTION" | grep -nF '**Step 2: Persist config.yaml**' | cut -d: -f1 | head -n1)
+MODE3_ASK_LINE=$(printf '%s\n' "$MODE3_SECTION" | grep -nF '**Step 3: Ask Project Description**' | cut -d: -f1 | head -n1)
+if [[ -n "$MODE3_PERSIST_LINE" && -n "$MODE3_ASK_LINE" && "$MODE3_PERSIST_LINE" -lt "$MODE3_ASK_LINE" ]]; then
+    pass "/aif Mode 3 persists config immediately after language resolution"
+else
+    fail "/aif Mode 3 config timing is wrong"
+fi
+
+if printf '%s\n' "$MODE2_SECTION" | grep -Fq '# Project: [Project Name]' \
+   || printf '%s\n' "$MODE2_SECTION" | grep -Fq '## Overview' \
+   || printf '%s\n' "$MODE2_SECTION" | grep -Fq '## Core Features' \
+   || printf '%s\n' "$MODE2_SECTION" | grep -Fq '## Tech Stack' \
+   || printf '%s\n' "$MODE2_SECTION" | grep -Fq '## Architecture Notes' \
+   || printf '%s\n' "$MODE2_SECTION" | grep -Fq '## Non-Functional Requirements'; then
     fail "English DESCRIPTION template headings reintroduced in /aif"
 else
     pass "no English DESCRIPTION template headings in /aif"
@@ -553,8 +588,22 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Part 6: Update command smoke tests
+# Part 6: /aif config helper regression tests
 # ─────────────────────────────────────────────
+echo -e "\n${BOLD}=== /aif config helper regression tests ===${NC}\n"
+
+set +e
+CONFIG_HELPER_OUTPUT=$(bash "$ROOT_DIR/scripts/test-aif-config.sh" 2>&1)
+CONFIG_HELPER_EXIT=$?
+set -e
+
+if [[ $CONFIG_HELPER_EXIT -eq 0 ]]; then
+    pass "aif config helper regression tests"
+else
+    fail "aif config helper regression tests"
+    echo "$CONFIG_HELPER_OUTPUT" | sed 's/^/      /'
+fi
+
 echo -e "\n${BOLD}=== Update command smoke tests ===${NC}\n"
 
 set +e
@@ -570,7 +619,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# Part 7: Init command smoke tests
+# Part 8: Init command smoke tests
 # ─────────────────────────────────────────────
 echo -e "\n${BOLD}=== Init command smoke tests ===${NC}\n"
 

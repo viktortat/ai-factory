@@ -87,6 +87,12 @@ For the complete key-by-key schema plus the built-in skill read/write matrix, se
 - `.ai-factory.json` — CLI state (agents, installed skills, MCP config) — managed by ai-factory package
 - `config.yaml` — User preferences (language, paths, workflow) — edited by developers
 
+`/aif` creates the initial `config.yaml` from `skills/aif/references/config-template.yaml`, so the commented template structure is preserved instead of being rewritten as a minimal YAML blob.
+
+On setup reruns, `/aif` updates only the managed key subset it owns (`language.*`, `paths.*`, `workflow.*`, selected `git.*`, and `rules.base`). Existing comments, manual customizations outside the targeted keys, unknown sections, and `rules.<area>` registrations are preserved.
+
+Those comments are intentional: they are part of the human-editable experience for `config.yaml`, not disposable formatting noise.
+
 ```yaml
 # AI Factory Configuration
 # All sections are optional — defaults are used when not specified.
