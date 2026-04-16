@@ -213,6 +213,7 @@ fi
 
 # /aif localization contract regression checks
 AIF_SKILL="$ROOT_DIR/skills/aif/SKILL.md"
+AIF_ARCH_SKILL="$ROOT_DIR/skills/aif-architecture/SKILL.md"
 MODE2_DESCRIPTION_SECTION="$(awk '
     /^\*\*Step 3: Create \.ai-factory\/DESCRIPTION\.md\*\*$/ { capture=1 }
     capture { print }
@@ -234,6 +235,21 @@ EXISTING_PROJECT_SUGGESTIONS_SECTION="$(awk '
     capture { print }
     /^Present these as `AskUserQuestion` with multi-select options:$/ { if (capture) exit }
 ' "$AIF_SKILL")"
+AIF_ARCH_DESCRIPTION_SECTION="$(awk '
+    /^### Step 3: Update DESCRIPTION\.md$/ { capture=1 }
+    capture { print }
+    /^### Step 4: Update AGENTS\.md$/ { if (capture) exit }
+' "$AIF_ARCH_SKILL")"
+AIF_ARCH_AGENTS_SECTION="$(awk '
+    /^### Step 4: Update AGENTS\.md$/ { capture=1 }
+    capture { print }
+    /^### Step 5: Confirm$/ { if (capture) exit }
+' "$AIF_ARCH_SKILL")"
+AIF_ARCH_CONFIRM_SECTION="$(awk '
+    /^### Step 5: Confirm$/ { capture=1 }
+    capture { print }
+    /^## Artifact Ownership$/ { if (capture) exit }
+' "$AIF_ARCH_SKILL")"
 
 if grep -Fq 'Immediately after determining Mode 1, Mode 2, or Mode 3, resolve the project language settings for the entire `/aif` run.' "$AIF_SKILL"; then
     pass "/aif resolves language immediately after mode detection"
@@ -364,6 +380,50 @@ else
     pass "no English existing-project suggestions in /aif"
 fi
 
+if printf '%s\n' "$AIF_ARCH_DESCRIPTION_SECTION" | grep -Fq 'resolved `language.artifacts`' \
+   && printf '%s\n' "$AIF_ARCH_DESCRIPTION_SECTION" | grep -Fq 'Use the resolved architecture path from config, not the default path literal.' \
+   && printf '%s\n' "$AIF_ARCH_DESCRIPTION_SECTION" | grep -Fq '## [Localized heading: Architecture]' \
+   && printf '%s\n' "$AIF_ARCH_DESCRIPTION_SECTION" | grep -Fq '[Localized sentence in resolved artifacts language referencing the resolved architecture artifact path for detailed architecture guidelines.]'; then
+    pass "/aif-architecture keeps DESCRIPTION companion update path-aware and localized"
+else
+    fail "/aif-architecture DESCRIPTION companion update contract missing"
+fi
+
+if printf '%s\n' "$AIF_ARCH_DESCRIPTION_SECTION" | grep -Fq '## Architecture' \
+   || printf '%s\n' "$AIF_ARCH_DESCRIPTION_SECTION" | grep -Fq 'Pattern: [chosen pattern name]'; then
+    fail "English DESCRIPTION companion update reintroduced in /aif-architecture"
+else
+    pass "no English DESCRIPTION companion update in /aif-architecture"
+fi
+
+if printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq 'resolved `language.artifacts`' \
+   && printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq '| [resolved-architecture-path] | [Localized architecture artifact description in resolved artifacts language] |' \
+   && printf '%s\n' "$AIF_ARCH_AGENTS_SECTION" | grep -Fq 'Only add if the resolved architecture path is not already present.'; then
+    pass "/aif-architecture keeps AGENTS companion update path-aware and localized"
+else
+    fail "/aif-architecture AGENTS companion update contract missing"
+fi
+
+if printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'resolved `language.ui`' \
+   && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized pattern label in `language.ui`]: [chosen pattern]' \
+   && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized file label in `language.ui`]: [resolved architecture path]' \
+   && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized success heading in `language.ui`]' \
+   && printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq '[Localized closing sentence in `language.ui` about workflow skills following these architecture guidelines.]'; then
+    pass "/aif-architecture confirmation uses resolved UI language and path"
+else
+    fail "/aif-architecture confirmation localization/path contract missing"
+fi
+
+if printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'Architecture document generated!' \
+   || printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'Pattern: [chosen pattern]' \
+   || printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'File: .ai-factory/ARCHITECTURE.md' \
+   || printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'Key rules:' \
+   || printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'All workflow skills (/aif-plan, /aif-implement) will now follow these architecture guidelines.'; then
+    fail "English default-path confirmation text reintroduced in /aif-architecture"
+else
+    pass "no English default-path confirmation text in /aif-architecture"
+fi
+
 # No hardcoded agent-specific values (must use {{template_vars}})
 # skills_dir patterns
 HARDCODED_SKILLS_DIR=$(grep -rE '\.(claude|cursor|codex|github|gemini|junie|qwen|windsurf|warp)/skills' "$ROOT_DIR/skills/" "$ROOT_DIR/subagents/" --include='*.md' 2>/dev/null | grep -v '{{' | wc -l | tr -d ' ' || true)
@@ -398,7 +458,8 @@ fi
 echo -e "\n${BOLD}=== Subagent integrity checks ===${NC}\n"
 
 set +e
-SUBAGENT_LINT_OUTPUT=$(ROOT_DIR="$ROOT_DIR" node --input-type=module <<'EOF' 2>&1
+SUBAGENT_LINT_OUTPUT=$(
+ROOT_DIR="$ROOT_DIR" node --input-type=module - 2>&1 <<'EOF'
 import fs from 'fs';
 import path from 'path';
 
@@ -415,7 +476,7 @@ const errors = [];
 function getFrontmatter(content, file) {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) {
-    errors.push(`${file}: missing frontmatter`);
+    errors.push(file + ': missing frontmatter');
     return '';
   }
   return match[1];
@@ -436,19 +497,19 @@ for (const file of files) {
   const hasWriterTools = /\bWrite\b|\bEdit\b/.test(tools);
 
   if (name !== expectedName) {
-    errors.push(`${file}: frontmatter name "${name}" does not match filename "${expectedName}"`);
+    errors.push(file + ': frontmatter name "' + name + '" does not match filename "' + expectedName + '"');
   }
 
   if (background && hasWriterTools) {
-    errors.push(`${file}: background agents must be read-only`);
+    errors.push(file + ': background agents must be read-only');
   }
 
-  if (docsContent.includes(`\`${expectedName}\``) === false) {
-    errors.push(`${file}: missing from docs/subagents.md inventory`);
+  if (docsContent.includes('`' + expectedName + '`') === false) {
+    errors.push(file + ': missing from docs/subagents.md inventory');
   }
 
-  if (refsContent.includes(`\`${expectedName}\``) === false) {
-    errors.push(`${file}: missing from .references/CLAUDE-SUBAGENTS.md inventory`);
+  if (refsContent.includes('`' + expectedName + '`') === false) {
+    errors.push(file + ': missing from .references/CLAUDE-SUBAGENTS.md inventory');
   }
 }
 
