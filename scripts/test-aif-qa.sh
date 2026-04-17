@@ -26,6 +26,19 @@ fail() {
     echo -e "  ${RED}FAIL${NC} $1"
 }
 
+assert_exact_line() {
+    local file="$1"
+    local expected="$2"
+    local success_message="$3"
+    local failure_message="$4"
+
+    if grep -Fqx "$expected" "$file"; then
+        pass "$success_message"
+    else
+        fail "$failure_message"
+    fi
+}
+
 # Reference implementation of the branch-slug algorithm documented in
 # skills/aif-qa/SKILL.md Step 0.2. Kept in lock-step with the skill's
 # three-step spec: safe_slug, 8-char hash of the original branch name, combine.
@@ -143,18 +156,18 @@ change_summary_ref="$SKILL_DIR/references/CHANGE-SUMMARY.md"
 test_plan_ref="$SKILL_DIR/references/TEST-PLAN.md"
 test_cases_ref="$SKILL_DIR/references/TEST-CASES.md"
 
-# Contract: follow-up handoff commands keep the resolved branch placeholder intact
-if grep -q '/aif-qa test-plan <resolved_branch>' "$change_summary_ref"; then
-    pass "CHANGE-SUMMARY.md keeps exact test-plan handoff"
-else
-    fail "CHANGE-SUMMARY.md must contain '/aif-qa test-plan <resolved_branch>'"
-fi
+# Contract: follow-up handoff commands keep the exact prompt option lines intact
+assert_exact_line \
+    "$change_summary_ref" \
+    '1. Yes - run /aif-qa test-plan <resolved_branch>' \
+    "CHANGE-SUMMARY.md keeps exact test-plan handoff line" \
+    "CHANGE-SUMMARY.md must contain the exact handoff line '1. Yes - run /aif-qa test-plan <resolved_branch>'"
 
-if grep -q '/aif-qa test-cases <resolved_branch>' "$test_plan_ref"; then
-    pass "TEST-PLAN.md keeps exact test-cases handoff"
-else
-    fail "TEST-PLAN.md must contain '/aif-qa test-cases <resolved_branch>'"
-fi
+assert_exact_line \
+    "$test_plan_ref" \
+    '1. Yes — run /aif-qa test-cases <resolved_branch>' \
+    "TEST-PLAN.md keeps exact test-cases handoff line" \
+    "TEST-PLAN.md must contain the exact handoff line '1. Yes — run /aif-qa test-cases <resolved_branch>'"
 
 # Contract: final-stage guidance still carries the resolved branch context
 if [[ -f "$test_cases_ref" ]] && grep -q 'resolved_branch' "$test_cases_ref"; then
@@ -163,14 +176,24 @@ else
     fail "TEST-CASES.md must reference resolved_branch"
 fi
 
-# Contract: reduced commit scope must also narrow diff scope through analysis_base
-if grep -q 'analysis_base' "$change_summary_ref" && \
-   grep -q 'git diff <analysis_base>...<resolved_branch> --name-status' "$change_summary_ref" && \
-   grep -q 'git diff <analysis_base>...<resolved_branch>' "$change_summary_ref"; then
-    pass "CHANGE-SUMMARY.md uses analysis_base for both diff commands"
+# Contract: reduced commit scope must also narrow diff scope through exact analysis_base command lines
+if grep -Fq 'analysis_base' "$change_summary_ref"; then
+    pass "CHANGE-SUMMARY.md defines analysis_base"
 else
-    fail "CHANGE-SUMMARY.md must drive both diff commands from analysis_base"
+    fail "CHANGE-SUMMARY.md must define analysis_base"
 fi
+
+assert_exact_line \
+    "$change_summary_ref" \
+    'git diff <analysis_base>...<resolved_branch> --name-status' \
+    "CHANGE-SUMMARY.md keeps exact name-status diff line" \
+    "CHANGE-SUMMARY.md must contain the exact line 'git diff <analysis_base>...<resolved_branch> --name-status'"
+
+assert_exact_line \
+    "$change_summary_ref" \
+    'git diff <analysis_base>...<resolved_branch>' \
+    "CHANGE-SUMMARY.md keeps exact full diff line" \
+    "CHANGE-SUMMARY.md must contain the exact line 'git diff <analysis_base>...<resolved_branch>'"
 
 if grep -q 'reduced commit scope and diff scope aligned' "$change_summary_ref"; then
     pass "CHANGE-SUMMARY.md explicitly links reduced commit scope to diff scope"

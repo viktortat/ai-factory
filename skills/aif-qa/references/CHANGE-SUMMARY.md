@@ -38,6 +38,7 @@ Options:
 Based on choice:
 - "Analyze all" -> keep `analysis_base = <effective_base>`
 - "Analyze only the last 20" -> select the 20 most recent commits from the full range, find the oldest commit in that subset, and set `analysis_base = <oldest_selected_commit>^`
+  - This `^` shorthand uses Git's first-parent semantics for the selected oldest commit.
 - "Cancel" -> **STOP**
 
 **Finalize the scoped commit list:**

@@ -260,6 +260,11 @@ AIF_ARCH_CONFIRM_SECTION="$(awk '
     capture { print }
     /^## Artifact Ownership$/ { if (capture) exit }
 ' "$AIF_ARCH_SKILL")"
+AIF_ARCH_OWNERSHIP_SECTION="$(awk '
+    /^## Artifact Ownership$/ { capture=1 }
+    capture { print }
+    capture && /^---$/ { exit }
+' "$AIF_ARCH_SKILL")"
 
 if grep -Fq 'Immediately after determining Mode 1, Mode 2, or Mode 3, resolve the project language settings for the entire `/aif` run.' "$AIF_SKILL"; then
     pass "/aif resolves language immediately after mode detection"
@@ -457,6 +462,19 @@ if printf '%s\n' "$AIF_ARCH_CONFIRM_SECTION" | grep -Fq 'Architecture document g
     fail "English default-path confirmation text reintroduced in /aif-architecture"
 else
     pass "no English default-path confirmation text in /aif-architecture"
+fi
+
+if printf '%s\n' "$AIF_ARCH_OWNERSHIP_SECTION" | grep -Fq 'resolved DESCRIPTION path from `config.yaml`' \
+   && printf '%s\n' "$AIF_ARCH_OWNERSHIP_SECTION" | grep -Fq 'architecture row in `AGENTS.md` context table.'; then
+    pass "/aif-architecture Artifact Ownership keeps companion updates path-aware"
+else
+    fail "/aif-architecture Artifact Ownership companion update contract missing"
+fi
+
+if printf '%s\n' "$AIF_ARCH_OWNERSHIP_SECTION" | grep -Fq '.ai-factory/DESCRIPTION.md'; then
+    fail "default DESCRIPTION path leaked into /aif-architecture Artifact Ownership"
+else
+    pass "no default DESCRIPTION path leak in /aif-architecture Artifact Ownership"
 fi
 
 # No hardcoded agent-specific values (must use {{template_vars}})

@@ -201,7 +201,7 @@ Present the confirmation in resolved `language.ui` and report the resolved archi
 
 - Primary ownership: the resolved architecture artifact path (default: `.ai-factory/ARCHITECTURE.md`).
 - Respect config overrides: write to the resolved architecture path from `config.yaml` when provided.
-- Allowed companion updates: architecture pointer in `.ai-factory/DESCRIPTION.md`, architecture row in `AGENTS.md` context table.
+- Allowed companion updates: architecture pointer in the resolved DESCRIPTION path from `config.yaml`, architecture row in `AGENTS.md` context table.
 - Read-only context: roadmap, rules, research, and plan artifacts unless user explicitly requests otherwise.
 
 ---
