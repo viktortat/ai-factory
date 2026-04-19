@@ -602,30 +602,33 @@ else
     fail "planner defaults stay on the richer full contract"
 fi
 
-if grep -qF 'Public command: /aif-improve.' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/skills/aif-improve-plus/SKILL.md" \
-    && grep -qF 'bounded worker agents' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/README.md"; then
-    pass "extension improve/runtime support statements stay synchronized"
+if grep -qF 'bounded helper workers' "$ROOT_DIR/docs/configuration.md" \
+    && grep -qF 'runtime-local settings such as `model`, `model_reasoning_effort`, `sandbox_mode`, and `developer_instructions`' "$ROOT_DIR/docs/extensions.md" \
+    && grep -qF 'one-shot workers' "$ROOT_DIR/docs/subagents.md"; then
+    pass "extension runtime helper docs stay synchronized"
 else
-    fail "extension improve/runtime support statements stay synchronized"
+    fail "extension runtime helper docs stay synchronized"
 fi
 
 # ─────────────────────────────────────────────
 # Part 5: Internal security self-scan
 # ─────────────────────────────────────────────
-if grep -R -qE '^[[:space:]]*reasoning_effort = |^[[:space:]]*prompt = """' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/agent-files/codex"; then
-    fail "AIFHub Codex agent files must use canonical TOML keys"
+if grep -qE '^[[:space:]]*reasoning_effort = |^[[:space:]]*prompt = """' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/codex/hello_reviewer.toml" \
+    || grep -qE '^[[:space:]]*reasoning_effort = |^[[:space:]]*prompt = """' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/test-agent/hello_helper.toml"; then
+    fail "example extension agent files must use canonical TOML keys"
 else
-    pass "AIFHub Codex agent file schema"
+    pass "example extension agent file schema"
 fi
 
-if grep -qF 'model = "gpt-5.4-mini"' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/agent-files/codex/aifhub-plan-polisher.toml" \
-    && grep -qF 'model_reasoning_effort = "medium"' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/agent-files/codex/aifhub-plan-polisher.toml" \
-    && grep -qF 'sandbox_mode = "workspace-write"' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/agent-files/codex/aifhub-plan-polisher.toml" \
-    && grep -qF 'sandbox_mode = "read-only"' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/agent-files/codex/aifhub-review-sidecar.toml" \
-    && grep -qF 'sandbox_mode = "read-only"' "$ROOT_DIR/.ai-factory/extensions/aifhub-extension/agent-files/codex/aifhub-security-sidecar.toml"; then
-    pass "AIFHub Codex helper sandbox contract"
+if grep -qF 'model = "gpt-5.4-mini"' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/codex/hello_reviewer.toml" \
+    && grep -qF 'model_reasoning_effort = "medium"' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/codex/hello_reviewer.toml" \
+    && grep -qF 'sandbox_mode = "read-only"' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/codex/hello_reviewer.toml" \
+    && grep -qF 'developer_instructions = """' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/codex/hello_reviewer.toml" \
+    && grep -qF 'model_reasoning_effort = "medium"' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/test-agent/hello_helper.toml" \
+    && grep -qF 'sandbox_mode = "read-only"' "$ROOT_DIR/examples/extensions/aif-ext-hello/agent-files/test-agent/hello_helper.toml"; then
+    pass "example extension agent file runtime contract"
 else
-    fail "AIFHub Codex helper sandbox contract"
+    fail "example extension agent file runtime contract"
 fi
 
 echo -e "\n${BOLD}=== Internal security self-scan ===${NC}\n"

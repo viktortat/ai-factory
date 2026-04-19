@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$ROOT_DIR/scripts/test-extension-fixtures.sh"
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -341,35 +342,37 @@ node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[
 echo "legacy claude migration smoke tests passed"
 
 # -------------------------------------------------------------------
-# AIFHub extension update smoke: update should re-apply the canonical
-# /aif-improve injection contract and heal bounded Codex helper drift.
+# Bounded helper extension update smoke: update should re-apply the
+# canonical /aif-improve injection contract and heal bounded Codex
+# helper drift.
 # -------------------------------------------------------------------
 
-AIFHUB_EXTENSION_DIR="$ROOT_DIR/.ai-factory/extensions/aifhub-extension"
-AIFHUB_PROJECT_DIR="$TMPDIR/update-smoke-aifhub-extension"
-mkdir -p "$AIFHUB_PROJECT_DIR"
+BOUNDED_EXTENSION_DIR="$TMPDIR/bounded-helper-extension"
+BOUNDED_PROJECT_DIR="$TMPDIR/update-smoke-bounded-helper-extension"
+create_bounded_helper_extension_fixture "$BOUNDED_EXTENSION_DIR"
+mkdir -p "$BOUNDED_PROJECT_DIR"
 
-(cd "$AIFHUB_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex --skills aif,aif-improve > "$TMPDIR/update-aifhub-base.log" 2>&1)
-(cd "$AIFHUB_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension add "$AIFHUB_EXTENSION_DIR" > "$TMPDIR/update-aifhub-add.log" 2>&1)
-(cd "$AIFHUB_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex --skills aif,aif-improve > "$TMPDIR/update-aifhub-reinit.log" 2>&1)
+(cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex --skills aif,aif-improve > "$TMPDIR/update-bounded-base.log" 2>&1)
+(cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension add "$BOUNDED_EXTENSION_DIR" > "$TMPDIR/update-bounded-add.log" 2>&1)
+(cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex --skills aif,aif-improve > "$TMPDIR/update-bounded-reinit.log" 2>&1)
 
-echo "<!-- drift -->" >> "$AIFHUB_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md"
-rm "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml"
+echo "<!-- drift -->" >> "$BOUNDED_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md"
+rm "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml"
 
-AIFHUB_UPDATE_OUTPUT="$TMPDIR/update-aifhub.log"
-(cd "$AIFHUB_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" update > "$AIFHUB_UPDATE_OUTPUT" 2>&1)
+BOUNDED_UPDATE_OUTPUT="$TMPDIR/update-bounded.log"
+(cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" update > "$BOUNDED_UPDATE_OUTPUT" 2>&1)
 
-assert_contains "$AIFHUB_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "canonical refinement command for this extension workflow" "AIFHub update must re-apply the canonical improve override"
-assert_contains "$AIFHUB_PROJECT_DIR/.codex/skills/aif-improve/SKILL.md" "canonical refinement command for this extension workflow" "AIFHub update must keep Codex improve override in sync"
-assert_contains "$AIFHUB_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "runtime-specific delegation prompts" "AIFHub update must preserve the non-canonical delegation warning"
-assert_not_contains "$AIFHUB_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "<!-- drift -->" "AIFHub update must heal local drift in injected improve skill copies"
-assert_exists "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" "AIFHub update must restore the bounded Codex plan-polisher helper"
-assert_contains "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" "bounded one-shot worker" "AIFHub update must restore the current Codex helper contract"
-assert_contains "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" 'model = "gpt-5.4-mini"' "AIFHub update must restore the bounded mini model"
-assert_contains "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" 'model_reasoning_effort = "medium"' "AIFHub update must restore the canonical reasoning key"
-assert_contains "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" 'sandbox_mode = "workspace-write"' "AIFHub update must restore the write-capable sandbox mode"
-assert_not_contains "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" '^reasoning_effort = ' "AIFHub update must not restore legacy reasoning key"
-assert_not_contains "$AIFHUB_PROJECT_DIR/.codex/agents/aifhub-plan-polisher.toml" '^prompt = """' "AIFHub update must not restore legacy prompt key"
-node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');if(!codex||!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('aifhub-plan-polisher.toml'))process.exit(1);" "$AIFHUB_PROJECT_DIR/.ai-factory.json"
+assert_contains "$BOUNDED_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "canonical refinement command for this extension workflow" "bounded helper update must re-apply the canonical improve override"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/skills/aif-improve/SKILL.md" "canonical refinement command for this extension workflow" "bounded helper update must keep Codex improve override in sync"
+assert_contains "$BOUNDED_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "runtime-specific delegation prompts" "bounded helper update must preserve the runtime warning"
+assert_not_contains "$BOUNDED_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "<!-- drift -->" "bounded helper update must heal local drift in injected improve skill copies"
+assert_exists "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" "bounded helper update must restore the Codex plan-polisher helper"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" "Bounded one-shot worker" "bounded helper update must restore the current Codex helper contract"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'model = "gpt-5.4-mini"' "bounded helper update must restore the bounded mini model"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'model_reasoning_effort = "medium"' "bounded helper update must restore the canonical reasoning key"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'sandbox_mode = "workspace-write"' "bounded helper update must restore the write-capable sandbox mode"
+assert_not_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" '^reasoning_effort = ' "bounded helper update must not restore legacy reasoning key"
+assert_not_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" '^prompt = """' "bounded helper update must not restore legacy prompt key"
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');if(!codex||!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('bounded-plan-polisher.toml'))process.exit(1);" "$BOUNDED_PROJECT_DIR/.ai-factory.json"
 
-echo "aifhub extension update smoke tests passed"
+echo "bounded helper extension update smoke tests passed"
