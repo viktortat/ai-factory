@@ -1,4 +1,5 @@
 import path from 'path';
+import { execFileSync } from 'child_process';
 import fs from 'fs-extra';
 import * as semver from 'semver';
 import { readJsonFile, removeDirectory, ensureDir } from '../utils/fs.js';
@@ -98,46 +99,75 @@ function isMissingCommandError(error: unknown): error is NodeJS.ErrnoException {
     && (error as NodeJS.ErrnoException).code === 'ENOENT';
 }
 
-function isMissingNpmShellError(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) {
-    return false;
-  }
-
-  const message = 'message' in error ? String((error as { message?: unknown }).message ?? '') : '';
-  const stderr = 'stderr' in error ? String((error as { stderr?: unknown }).stderr ?? '') : '';
-
-  return message.includes('npm is not recognized')
-    || stderr.includes('npm is not recognized')
-    || message.includes('\'npm\' is not recognized')
-    || stderr.includes('\'npm\' is not recognized');
+export interface ResolveNpmCommandOptions {
+  platform?: NodeJS.Platform;
+  execPath?: string;
+  pathEnv?: string;
 }
 
-function getPlatformCommand(command: 'git' | 'tar'): string {
-  return command;
-}
-
-async function resolveNpmCommand(): Promise<{ command: string; argsPrefix: string[] }> {
-  const nodeDir = path.dirname(process.execPath);
-  const npmCliCandidates = [
+function getNpmCliCandidates(execPath: string): string[] {
+  const nodeDir = path.dirname(execPath);
+  return [
     path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
     path.resolve(nodeDir, '..', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
     path.resolve(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
   ];
+}
 
-  for (const candidate of new Set(npmCliCandidates)) {
+async function findWindowsPathNpmCli(pathEnv: string, fallbackExecPath: string): Promise<{ command: string; argsPrefix: string[] } | null> {
+  const npmCommandPaths = pathEnv
+    .split(path.delimiter)
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => path.join(entry, 'npm.cmd'));
+
+  for (const npmCommandPath of npmCommandPaths) {
+    if (!await fs.pathExists(npmCommandPath)) {
+      continue;
+    }
+
+    const npmRoot = path.dirname(npmCommandPath);
+    const npmCliPath = path.join(npmRoot, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+
+    if (!await fs.pathExists(npmCliPath)) {
+      continue;
+    }
+
+    const bundledNodePath = path.join(npmRoot, 'node.exe');
+
+    return {
+      command: await fs.pathExists(bundledNodePath) ? bundledNodePath : fallbackExecPath,
+      argsPrefix: [npmCliPath],
+    };
+  }
+
+  return null;
+}
+
+export async function resolveNpmCommand(options: ResolveNpmCommandOptions = {}): Promise<{ command: string; argsPrefix: string[] }> {
+  const platform = options.platform ?? process.platform;
+  const execPath = options.execPath ?? process.execPath;
+  const pathEnv = options.pathEnv ?? process.env.PATH ?? '';
+
+  for (const candidate of new Set(getNpmCliCandidates(execPath))) {
     if (await fs.pathExists(candidate)) {
       return {
-        command: process.execPath,
+        command: execPath,
         argsPrefix: [candidate],
       };
     }
   }
 
-  if (process.platform === 'win32') {
-    return {
-      command: process.env.ComSpec || 'cmd.exe',
-      argsPrefix: ['/d', '/s', '/c', 'npm'],
-    };
+  if (platform === 'win32') {
+    // Resolve npm-cli.js directly so package specs never pass through cmd.exe parsing.
+    const resolvedFromPath = await findWindowsPathNpmCli(pathEnv, execPath);
+    if (resolvedFromPath) {
+      return resolvedFromPath;
+    }
+
+    throw new Error(
+      'Unable to locate npm-cli.js for a safe Windows npm invocation. Reinstall Node.js/npm or ensure npm.cmd points to a standard npm installation.',
+    );
   }
 
   return {
@@ -827,10 +857,8 @@ async function resolveFromLocal(sourcePath: string): Promise<ResolvedExtension> 
 }
 
 async function resolveFromNpm(projectDir: string, packageName: string): Promise<ResolvedExtension> {
-  const { execFileSync } = await import('child_process');
   const tmpDir = path.join(getExtensionsDir(projectDir), '.tmp-install');
   const npmRunner = await resolveNpmCommand();
-  const tarCommand = getPlatformCommand('tar');
   logExtension('debug', 'Resolving npm extension source', { packageName, tmpDir });
   await removeDirectory(tmpDir);
   await ensureDir(tmpDir);
@@ -843,7 +871,7 @@ async function resolveFromNpm(projectDir: string, packageName: string): Promise<
     );
   } catch (error) {
     await removeDirectory(tmpDir);
-    if (isMissingCommandError(error) || isMissingNpmShellError(error)) {
+    if (isMissingCommandError(error)) {
       throw new Error('npm is required to install npm-based extensions but was not found in PATH.');
     }
     throw error;
@@ -859,7 +887,7 @@ async function resolveFromNpm(projectDir: string, packageName: string): Promise<
   const extractDir = path.join(tmpDir, 'extracted');
   await ensureDir(extractDir);
   try {
-    execFileSync(tarCommand, ['-xzf', path.join(tmpDir, tgzFile), '-C', extractDir], { stdio: 'pipe' });
+    execFileSync('tar', ['-xzf', path.join(tmpDir, tgzFile), '-C', extractDir], { stdio: 'pipe' });
   } catch (error) {
     await removeDirectory(tmpDir);
     if (isMissingCommandError(error)) {
@@ -885,9 +913,7 @@ async function resolveFromNpm(projectDir: string, packageName: string): Promise<
 }
 
 async function resolveFromGit(projectDir: string, url: string): Promise<ResolvedExtension> {
-  const { execFileSync } = await import('child_process');
   const tmpDir = path.join(getExtensionsDir(projectDir), '.tmp-clone');
-  const gitCommand = getPlatformCommand('git');
   const gitSource = parseGitSource(url);
   const sourceType = classifyExtensionSource(url);
   logExtension('debug', 'Resolving git extension source', {
@@ -917,7 +943,7 @@ async function resolveFromGit(projectDir: string, url: string): Promise<Resolved
   }
   cloneArgs.push(gitSource.cloneUrl, tmpDir);
   try {
-    execFileSync(gitCommand, cloneArgs, { stdio: 'pipe' });
+    execFileSync('git', cloneArgs, { stdio: 'pipe' });
   } catch (error) {
     await removeDirectory(tmpDir);
     if (isMissingCommandError(error)) {
