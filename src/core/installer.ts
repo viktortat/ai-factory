@@ -25,6 +25,27 @@ import { getTransformer, extractFrontmatterName, replaceFrontmatterName } from '
 
 const EXTENSION_INJECTION_BLOCK_PATTERN = /\n?<!-- aif-ext:[^:]+:[^:]+:[^:]+:start -->\n[\s\S]*?\n<!-- aif-ext:[^:]+:[^:]+:[^:]+:end -->\n?/g;
 
+// Top-level directories inside a skill source that must never be shipped to
+// the user's project: they are part of our authoring/testing workflow only.
+const SKILL_INTERNAL_TOP_LEVEL_DIRS = new Set(['tests']);
+
+function isSkillInternalChild(skillRootDir: string, candidate: string): boolean {
+  const rel = path.relative(skillRootDir, candidate);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+    return false;
+  }
+  const [top] = rel.split(path.sep);
+  return SKILL_INTERNAL_TOP_LEVEL_DIRS.has(top);
+}
+
+function skillSourceCopyFilter(skillRootDir: string): (srcPath: string) => boolean {
+  return (srcPath: string) => !isSkillInternalChild(skillRootDir, srcPath);
+}
+
+function skillSourceSkipDirectory(skillRootDir: string): (absPath: string, name: string) => boolean {
+  return (absPath: string) => isSkillInternalChild(skillRootDir, absPath);
+}
+
 export type SkillUpdateStatus = 'changed' | 'unchanged' | 'skipped' | 'removed';
 
 export interface SkillUpdateEntry {
@@ -253,7 +274,9 @@ async function getManagedSkillState(
   skillName: string,
 ): Promise<ManagedArtifactState | null> {
   const sourceSkillDir = path.join(getSkillsDir(), skillName);
-  const sourceHash = await hashDirectory(sourceSkillDir);
+  const sourceHash = await hashDirectory(sourceSkillDir, {
+    skipDirectory: skillSourceSkipDirectory(sourceSkillDir),
+  });
   if (!sourceHash) {
     return null;
   }
@@ -382,7 +405,9 @@ async function installSkillWithTransformer(
     }
   } else {
     const targetSkillDir = path.join(projectDir, skillsDir, result.targetDir);
-    await copyDirectory(sourceSkillDir, targetSkillDir);
+    await copyDirectory(sourceSkillDir, targetSkillDir, {
+      filter: skillSourceCopyFilter(sourceSkillDir),
+    });
     if (result.content !== content) {
       await writeTextFile(path.join(targetSkillDir, 'SKILL.md'), result.content);
     } else if (adjustedContent !== content) {
@@ -599,7 +624,9 @@ export async function updateSkills(
 
   for (const skillName of updatableBaseSkills) {
     const sourceSkillDir = path.join(getSkillsDir(), skillName);
-    const sourceHash = await hashDirectory(sourceSkillDir);
+    const sourceHash = await hashDirectory(sourceSkillDir, {
+      skipDirectory: skillSourceSkipDirectory(sourceSkillDir),
+    });
     const paths = resolveSkillPaths(projectDir, agentInstallation.skillsDir, agentInstallation.id, skillName, sourceSkillDir);
     const installedHash = await hashInstalledSkill(paths);
     const previousState = previousManaged[skillName];
