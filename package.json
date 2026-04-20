@@ -62,6 +62,9 @@
     "ignore": [
       "examples/**",
       "skills/aif/references/update-config.mjs"
+    ],
+    "ignoreDependencies": [
+      "@cutcode/ai-tester"
     ]
   },
   "engines": {
