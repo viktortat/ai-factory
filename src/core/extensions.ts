@@ -103,6 +103,7 @@ export interface ResolveNpmCommandOptions {
   platform?: NodeJS.Platform;
   execPath?: string;
   pathEnv?: string;
+  pathDelimiter?: string;
 }
 
 function getNpmCliCandidates(execPath: string): string[] {
@@ -114,9 +115,21 @@ function getNpmCliCandidates(execPath: string): string[] {
   ];
 }
 
-async function findWindowsPathNpmCli(pathEnv: string, fallbackExecPath: string): Promise<{ command: string; argsPrefix: string[] } | null> {
+function getPathDelimiter(platform: NodeJS.Platform, override?: string): string {
+  if (override) {
+    return override;
+  }
+
+  return platform === 'win32' ? ';' : ':';
+}
+
+async function findWindowsPathNpmCli(
+  pathEnv: string,
+  fallbackExecPath: string,
+  pathDelimiter: string,
+): Promise<{ command: string; argsPrefix: string[] } | null> {
   const npmCommandPaths = pathEnv
-    .split(path.delimiter)
+    .split(pathDelimiter)
     .map(entry => entry.trim())
     .filter(Boolean)
     .map(entry => path.join(entry, 'npm.cmd'));
@@ -134,9 +147,16 @@ async function findWindowsPathNpmCli(pathEnv: string, fallbackExecPath: string):
     }
 
     const bundledNodePath = path.join(npmRoot, 'node.exe');
+    const command = await fs.pathExists(bundledNodePath) ? bundledNodePath : fallbackExecPath;
+
+    logExtension('debug', '[FIX] Resolved Windows npm-cli.js from PATH', {
+      npmCliPath,
+      command,
+      pathDelimiter,
+    });
 
     return {
-      command: await fs.pathExists(bundledNodePath) ? bundledNodePath : fallbackExecPath,
+      command,
       argsPrefix: [npmCliPath],
     };
   }
@@ -148,6 +168,7 @@ export async function resolveNpmCommand(options: ResolveNpmCommandOptions = {}):
   const platform = options.platform ?? process.platform;
   const execPath = options.execPath ?? process.execPath;
   const pathEnv = options.pathEnv ?? process.env.PATH ?? '';
+  const pathDelimiter = getPathDelimiter(platform, options.pathDelimiter);
 
   for (const candidate of new Set(getNpmCliCandidates(execPath))) {
     if (await fs.pathExists(candidate)) {
@@ -160,7 +181,10 @@ export async function resolveNpmCommand(options: ResolveNpmCommandOptions = {}):
 
   if (platform === 'win32') {
     // Resolve npm-cli.js directly so package specs never pass through cmd.exe parsing.
-    const resolvedFromPath = await findWindowsPathNpmCli(pathEnv, execPath);
+    logExtension('debug', '[FIX] Resolving Windows npm-cli.js from PATH', {
+      pathDelimiter,
+    });
+    const resolvedFromPath = await findWindowsPathNpmCli(pathEnv, execPath, pathDelimiter);
     if (resolvedFromPath) {
       return resolvedFromPath;
     }

@@ -358,6 +358,24 @@ const resolved = await resolveNpmCommand({
 assert.equal(resolved.command, bundledNodePath, 'Windows npm resolution must prefer node.exe adjacent to npm.cmd');
 assert.deepEqual(resolved.argsPrefix, [npmCliPath], 'Windows npm resolution must invoke npm-cli.js directly');
 
+const resolvedWithCustomDelimiter = await resolveNpmCommand({
+  platform: 'win32',
+  execPath: fakeExecPath,
+  pathEnv: `${path.relative(process.cwd(), npmRoot)}:${path.relative(process.cwd(), tempRoot)}`,
+  pathDelimiter: ':',
+});
+
+assert.equal(
+  resolvedWithCustomDelimiter.command,
+  path.join(path.relative(process.cwd(), npmRoot), 'node.exe'),
+  'Windows npm resolution must honor injected path delimiters instead of host defaults',
+);
+assert.deepEqual(
+  resolvedWithCustomDelimiter.argsPrefix,
+  [path.join(path.relative(process.cwd(), npmRoot), 'node_modules', 'npm', 'bin', 'npm-cli.js')],
+  'Windows npm resolution must honor injected delimiters when locating npm-cli.js',
+);
+
 const noSafeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aif-npm-missing-'));
 const missingExecDir = path.join(noSafeRoot, 'isolated-node');
 fs.mkdirSync(missingExecDir, { recursive: true });
