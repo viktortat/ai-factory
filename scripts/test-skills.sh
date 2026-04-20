@@ -656,6 +656,20 @@ fi
 # ─────────────────────────────────────────────
 # Part 8: aif-qa skill smoke tests
 # ─────────────────────────────────────────────
+echo -e "\n${BOLD}=== Extension resolver unit tests ===${NC}\n"
+
+set +e
+EXTENSION_UNIT_OUTPUT=$(bash "$ROOT_DIR/scripts/test-extensions.sh" 2>&1)
+EXTENSION_UNIT_EXIT=$?
+set -e
+
+if [[ $EXTENSION_UNIT_EXIT -eq 0 ]]; then
+    pass "extension resolver unit tests"
+else
+    fail "extension resolver unit tests"
+    echo "$EXTENSION_UNIT_OUTPUT" | sed 's/^/      /'
+fi
+
 echo -e "\n${BOLD}=== aif-qa skill smoke tests ===${NC}\n"
 
 set +e
