@@ -602,6 +602,23 @@ else
     fail "planner defaults stay on the richer full contract"
 fi
 
+if grep -qF '`paths.plan`' "$ROOT_DIR/subagents/plan-polisher.md" \
+    && grep -qF '`paths.plans`' "$ROOT_DIR/subagents/plan-polisher.md" \
+    && grep -qF '`git.base_branch`' "$ROOT_DIR/subagents/plan-polisher.md" \
+    && grep -qF '`git.create_branches`' "$ROOT_DIR/subagents/plan-polisher.md" \
+    && grep -qF '`git.branch_prefix`' "$ROOT_DIR/subagents/plan-polisher.md" \
+    && grep -qF 'Treat the current branch as an AI Factory feature branch only if it starts with the configured `git.branch_prefix`.' "$ROOT_DIR/subagents/plan-polisher.md"; then
+    pass "plan-polisher stays config-aware for plan paths and branch prefix"
+else
+    fail "plan-polisher config-aware path/branch-prefix contract missing"
+fi
+
+if grep -qF 'contains `/` in the name' "$ROOT_DIR/subagents/plan-polisher.md"; then
+    fail "plan-polisher must not use slash-presence branch heuristic"
+else
+    pass "plan-polisher avoids slash-presence branch heuristic"
+fi
+
 if grep -qF 'bounded helper workers' "$ROOT_DIR/docs/configuration.md" \
     && grep -qF 'runtime-local settings such as `model`, `model_reasoning_effort`, `sandbox_mode`, and `developer_instructions`' "$ROOT_DIR/docs/extensions.md" \
     && grep -qF 'one-shot workers' "$ROOT_DIR/docs/subagents.md"; then

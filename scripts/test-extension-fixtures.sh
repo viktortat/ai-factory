@@ -32,11 +32,11 @@ name = "bounded_plan_polisher"
 description = "Bounded one-shot worker for plan refinement checks."
 model = "gpt-5.4-mini"
 model_reasoning_effort = "medium"
-sandbox_mode = "workspace-write"
+sandbox_mode = "read-only"
 developer_instructions = """
-This bounded planning worker reviews the current plan context and proposes a tighter refinement pass.
+This bounded planning worker is advisory only and reviews the current plan context without editing files.
 Use runtime-specific delegation prompts only as local helper guidance.
-Do not edit files unless the parent agent explicitly asks.
+Return refinement guidance to the parent agent instead of mutating plan artifacts directly.
 """
 EOF
 

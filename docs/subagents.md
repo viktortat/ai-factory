@@ -1,14 +1,14 @@
-[← Reflex Loop](loop.md) · [Back to README](../README.md) · [Core Skills →](skills.md)
+﻿[← Reflex Loop](loop.md) · [Back to README](../README.md) · [Core Skills →](skills.md)
 
 # Subagents
 
-> **Bundled package assets are Claude-only.** AI Factory ships bundled Claude subagents from the package `subagents/` directory and installs them into `.claude/agents/` during `ai-factory init` whenever Claude Code is selected. `ai-factory update` refreshes those managed files. Extensions may also provide agent files for Codex or extension-defined runtimes, but those are configured through the extension manifest rather than this bundled package inventory. Those extension helpers can be useful, but they are not automatic equivalents of the Claude-only top-level coordinator loop described on this page, and their runtime settings live in their own runtime-native agent files rather than being passed from Claude-style coordinator prompts.
+> **Bundled package assets are Claude-only.** AI Factory ships bundled Claude subagents from the package `subagents/` directory and installs them into `.claude/agents/` during `ai-factory init` whenever Claude Code is selected. `ai-factory update` refreshes those managed files. Extensions may also provide agent files for Codex or extension-defined runtimes, but those are configured through the extension manifest rather than this bundled package inventory. Those extension helpers can be useful, but they are not automatic equivalents of the Claude-only top-level coordinator loop described on this page, and their runtime settings live in their own runtime-native agent files rather than being passed from Claude-style coordinator prompts. For bounded Codex helpers, prefer read-only advisory workers over writer roles.
 
 ## Migration Note
 
-If you have an existing AI Factory project that was initialized before subagent support was added, running `ai-factory update` will automatically install all bundled subagents into `.claude/agents/`. This is intentional migration behavior — `loadConfig()` reads legacy Claude-only `subagentsDir`, `installedSubagents`, and `managedSubagents`, but persists the universal `agentsDir`, `installedAgentFiles`, and `managedAgentFiles` fields on the next save. No opt-in is required; the bundled subagents remain part of the standard AI Factory package for Claude Code.
+If you have an existing AI Factory project that was initialized before subagent support was added, running `ai-factory update` will automatically install all bundled subagents into `.claude/agents/`. This is intentional migration behavior - `loadConfig()` reads legacy Claude-only `subagentsDir`, `installedSubagents`, and `managedSubagents`, but persists the universal `agentsDir`, `installedAgentFiles`, `managedAgentFiles`, and `agentFileSources` fields on the next save. No opt-in is required; the bundled subagents remain part of the standard AI Factory package for Claude Code.
 
-If you already have custom agents in `.claude/agents/`, they will not be touched — AI Factory only manages files listed in `installedAgentFiles` / `managedAgentFiles` in `.ai-factory.json`.
+If you already have custom agents in `.claude/agents/`, they will not be touched - AI Factory only manages files listed in `installedAgentFiles` and tracked by `managedAgentFiles` / `agentFileSources` in `.ai-factory.json`.
 
 ## Why This Exists
 
@@ -337,7 +337,7 @@ claude --agent implement-coordinator "@.ai-factory/plans/feature-auth.md"
 
 ## Why Only Claude For Now
 
-Other supported agents in AI Factory have their own skill formats and extension points, but they do not share Claude Code's `.claude/agents/` subagent mechanism. So this specific setup is intentionally documented as Claude-only instead of pretending it is portable. Extension-provided Codex agent files may still ship bounded helpers, but those helpers are one-shot workers, not replacements for the Claude-only coordinator loop on this page.
+Other supported agents in AI Factory have their own skill formats and extension points, but they do not share Claude Code's `.claude/agents/` subagent mechanism. So this specific setup is intentionally documented as Claude-only instead of pretending it is portable. Extension-provided Codex agent files may still ship bounded helpers, but those helpers are read-only one-shot workers, not replacements for the Claude-only coordinator loop on this page.
 
 If we later build an agent-agnostic abstraction for role-based loop workers, this page should be updated to separate:
 - Claude-native subagents
@@ -349,3 +349,4 @@ If we later build an agent-agnostic abstraction for role-based loop workers, thi
 - [Reflex Loop](loop.md) - the workflow these agents support
 - [Core Skills](skills.md) - slash command reference including `/aif-loop`
 - [Configuration](configuration.md) - project directories and agent config files
+

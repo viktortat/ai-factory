@@ -194,7 +194,7 @@ mkdir -p "$EXT_PROJECT_DIR"
 
 (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude --skills aif > "$TMPDIR/init-ext-base.log" 2>&1)
 (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension add "$EXTENSION_DIR" > "$TMPDIR/init-ext-add.log" 2>&1)
-node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const claude=c.agents.find(a=>a.id==='claude');if(!claude||!Array.isArray(claude.installedAgentFiles)||!claude.installedAgentFiles.includes('test-sidecar.md'))process.exit(1);" "$EXT_PROJECT_DIR/.ai-factory.json"
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const claude=c.agents.find(a=>a.id==='claude');if(!claude||!Array.isArray(claude.installedAgentFiles)||!claude.installedAgentFiles.includes('test-sidecar.md'))process.exit(1);if(!claude.managedAgentFiles||!claude.managedAgentFiles['test-sidecar.md'])process.exit(1);if(!claude.agentFileSources||claude.agentFileSources['test-sidecar.md']?.kind!=='extension'||claude.agentFileSources['test-sidecar.md']?.extensionName!=='aif-ext-runtime-agent-files')process.exit(1);" "$EXT_PROJECT_DIR/.ai-factory.json"
 (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex,test-runtime --skills aif > "$TMPDIR/init-ext-reinit.log" 2>&1)
 
 assert_exists "$EXT_PROJECT_DIR/.claude/agents/test-sidecar.md" "extension claude agent file must be installed on init"
@@ -254,7 +254,7 @@ EOF
 (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension update --force > "$TMPDIR/init-ext-update.log" 2>&1)
 assert_contains "$EXT_PROJECT_DIR/.codex/agents/test-helper.toml" "updated codex agent file" "extension update must refresh codex agent file"
 assert_contains "$EXT_PROJECT_DIR/.test-runtime/agents/test-agent.toml" "updated dynamic runtime agent file" "extension update must refresh dynamic runtime agent file"
-node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');const dyn=c.agents.find(a=>a.id==='test-runtime');if(!codex||!dyn)process.exit(1);if(!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('test-helper.toml'))process.exit(1);if(!Array.isArray(dyn.installedAgentFiles)||!dyn.installedAgentFiles.includes('test-agent.toml'))process.exit(1);" "$EXT_PROJECT_DIR/.ai-factory.json"
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');const dyn=c.agents.find(a=>a.id==='test-runtime');if(!codex||!dyn)process.exit(1);if(!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('test-helper.toml'))process.exit(1);if(!Array.isArray(dyn.installedAgentFiles)||!dyn.installedAgentFiles.includes('test-agent.toml'))process.exit(1);if(!codex.managedAgentFiles||!codex.managedAgentFiles['test-helper.toml'])process.exit(1);if(!dyn.managedAgentFiles||!dyn.managedAgentFiles['test-agent.toml'])process.exit(1);if(!codex.agentFileSources||codex.agentFileSources['test-helper.toml']?.extensionName!=='aif-ext-runtime-agent-files')process.exit(1);if(!dyn.agentFileSources||dyn.agentFileSources['test-agent.toml']?.extensionName!=='aif-ext-runtime-agent-files')process.exit(1);" "$EXT_PROJECT_DIR/.ai-factory.json"
 
 # Remove should be blocked while dynamic runtime is still configured.
 if (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension remove aif-ext-runtime-agent-files > "$TMPDIR/init-ext-remove-blocked.log" 2>&1); then
@@ -269,6 +269,7 @@ assert_contains "$TMPDIR/init-ext-remove-blocked.log" "orphan configured runtime
 (cd "$EXT_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension remove aif-ext-runtime-agent-files > "$TMPDIR/init-ext-remove.log" 2>&1)
 assert_not_exists "$EXT_PROJECT_DIR/.claude/agents/test-sidecar.md" "extension claude agent file must be removed"
 assert_not_exists "$EXT_PROJECT_DIR/.codex/agents/test-helper.toml" "extension codex agent file must be removed"
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const claude=c.agents.find(a=>a.id==='claude');const codex=c.agents.find(a=>a.id==='codex');if(!claude||!codex)process.exit(1);if((claude.installedAgentFiles||[]).includes('test-sidecar.md'))process.exit(1);if((codex.installedAgentFiles||[]).includes('test-helper.toml'))process.exit(1);if((claude.managedAgentFiles||{})['test-sidecar.md'])process.exit(1);if((codex.managedAgentFiles||{})['test-helper.toml'])process.exit(1);if((claude.agentFileSources||{})['test-sidecar.md'])process.exit(1);if((codex.agentFileSources||{})['test-helper.toml'])process.exit(1);" "$EXT_PROJECT_DIR/.ai-factory.json"
 
 echo "extension agent file init smoke tests passed"
 
@@ -285,21 +286,22 @@ mkdir -p "$BOUNDED_PROJECT_DIR"
 
 (cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex --skills aif,aif-improve > "$TMPDIR/init-bounded-base.log" 2>&1)
 (cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" extension add "$BOUNDED_EXTENSION_DIR" > "$TMPDIR/init-bounded-add.log" 2>&1)
-node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');if(!codex||!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('bounded-plan-polisher.toml'))process.exit(1);" "$BOUNDED_PROJECT_DIR/.ai-factory.json"
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');if(!codex||!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('bounded-plan-polisher.toml'))process.exit(1);if(!codex.managedAgentFiles||!codex.managedAgentFiles['bounded-plan-polisher.toml'])process.exit(1);if(!codex.agentFileSources||codex.agentFileSources['bounded-plan-polisher.toml']?.kind!=='extension'||codex.agentFileSources['bounded-plan-polisher.toml']?.extensionName!=='aif-ext-bounded-helpers')process.exit(1);" "$BOUNDED_PROJECT_DIR/.ai-factory.json"
 (cd "$BOUNDED_PROJECT_DIR" && node "$ROOT_DIR/dist/cli/index.js" init --agents claude,codex --skills aif,aif-improve > "$TMPDIR/init-bounded-reinit.log" 2>&1)
 
 assert_exists "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" "bounded helper init must install the Codex plan-polisher helper"
 assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" "Bounded one-shot worker" "bounded helper description must be installed"
 assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'model = "gpt-5.4-mini"' "bounded helper must use the bounded mini model"
 assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'model_reasoning_effort = "medium"' "bounded helper must use canonical reasoning key"
-assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'sandbox_mode = "workspace-write"' "bounded helper must declare write-capable sandbox mode"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'sandbox_mode = "read-only"' "bounded helper must declare read-only sandbox mode"
 assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" 'developer_instructions = """' "bounded helper must use canonical instructions key"
+assert_contains "$BOUNDED_PROJECT_DIR/.codex/agents/bounded-plan-polisher.toml" "advisory only" "bounded helper instructions must describe advisory-only behavior"
 assert_contains "$BOUNDED_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "canonical refinement command for this extension workflow" "bounded helper init must inject the canonical improve override into Claude skill copies"
 assert_contains "$BOUNDED_PROJECT_DIR/.claude/skills/aif-improve/SKILL.md" "runtime-specific delegation prompts" "bounded helper init must inject the runtime warning into Claude skill copies"
 assert_contains "$BOUNDED_PROJECT_DIR/.codex/skills/aif-improve/SKILL.md" "canonical refinement command for this extension workflow" "bounded helper init must inject the canonical improve override into Codex skill copies"
 assert_contains "$BOUNDED_PROJECT_DIR/.codex/skills/aif-improve/SKILL.md" "runtime-specific delegation prompts" "bounded helper init must inject the runtime warning into Codex skill copies"
 
-node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');if(!codex||codex.agentsDir!=='.codex/agents')process.exit(1);if(!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('bounded-plan-polisher.toml'))process.exit(1);" "$BOUNDED_PROJECT_DIR/.ai-factory.json"
+node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));const codex=c.agents.find(a=>a.id==='codex');if(!codex||codex.agentsDir!=='.codex/agents')process.exit(1);if(!Array.isArray(codex.installedAgentFiles)||!codex.installedAgentFiles.includes('bounded-plan-polisher.toml'))process.exit(1);if(!codex.managedAgentFiles||!codex.managedAgentFiles['bounded-plan-polisher.toml'])process.exit(1);if(!codex.agentFileSources||codex.agentFileSources['bounded-plan-polisher.toml']?.extensionName!=='aif-ext-bounded-helpers')process.exit(1);" "$BOUNDED_PROJECT_DIR/.ai-factory.json"
 
 echo "bounded helper extension init smoke tests passed"
 

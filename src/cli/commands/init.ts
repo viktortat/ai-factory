@@ -1,7 +1,15 @@
 import chalk from 'chalk';
 import path from 'path';
 import { runWizard, type WizardAnswers } from '../wizard/prompts.js';
-import { buildManagedSkillsState, buildManagedSubagentsState, installSkills, installSubagents, getAvailableSkills } from '../../core/installer.js';
+import {
+  buildBundledAgentFileSources,
+  buildExtensionAgentFileSources,
+  buildManagedSkillsState,
+  installSkills,
+  installSubagents,
+  getAvailableSkills,
+  rebuildManagedAgentFilesForAgents,
+} from '../../core/installer.js';
 import { saveConfig, configExists, loadConfig, getCurrentVersion, type AgentInstallation } from '../../core/config.js';
 import { configureMcp, getMcpInstructions } from '../../core/mcp.js';
 import { getAgentConfig, getAvailableAgentIds, hydrateProjectAgentRegistry } from '../../core/agents.js';
@@ -12,6 +20,7 @@ import {
   assertNoAgentFileConflicts,
   collectReplacedSkills,
   installExtensionAgentFilesForAllAgents,
+  mergeAgentFileSources,
   mergeInstalledAgentFiles,
 } from '../../core/extension-ops.js';
 import { loadAllExtensions } from '../../core/extensions.js';
@@ -180,6 +189,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
         ...(agentConfig.agentsDir ? {
           agentsDir: agentConfig.agentsDir,
           installedAgentFiles,
+          agentFileSources: buildBundledAgentFileSources(installedAgentFiles),
         } : {}),
         mcp: {
           github: agentSelection.mcpGithub,
@@ -209,6 +219,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
         }, manifest);
         const agentFileResults = await installExtensionAgentFilesForAllAgents(projectDir, installedAgents, dir, manifest);
         mergeInstalledAgentFiles(installedAgents, agentFileResults);
+        mergeAgentFileSources(installedAgents, buildExtensionAgentFileSources(manifest));
       }
 
       let totalInjections = 0;
@@ -224,10 +235,8 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     for (const agent of installedAgents) {
       const managedBaseSkills = agent.installedSkills.filter(skill => !replacedSkills.has(skill));
       agent.managedSkills = await buildManagedSkillsState(projectDir, agent, managedBaseSkills);
-      if (agent.agentsDir) {
-        agent.managedAgentFiles = await buildManagedSubagentsState(projectDir, agent, agent.installedAgentFiles ?? []);
-      }
     }
+    await rebuildManagedAgentFilesForAgents(projectDir, installedAgents);
 
     await saveConfig(projectDir, {
       version: getCurrentVersion(),

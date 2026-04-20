@@ -10,11 +10,15 @@ import {
 } from '../../core/extensions.js';
 import { removeExtensionMcpServers } from '../../core/mcp.js';
 import {
+  collectTrackedExtensionAgentFileTargets,
   removeSkillsForAllAgents,
   collectReplacedSkills,
   collectManifestAgentFileTargets,
+  removeAgentFilesForAllAgentsByTargets,
   removeExtensionAgentFilesForAllAgents,
+  pruneAgentFileSources,
   pruneInstalledAgentFiles,
+  pruneManagedAgentFiles,
   restoreBaseSkills,
   stripInjectionsForAllAgents,
   removeCustomSkillsForAllAgents,
@@ -111,9 +115,17 @@ export async function extensionRemoveCommand(name: string): Promise<void> {
     const manifest = await loadExtensionManifest(extensionDir);
     assertNoConfiguredRuntimeOrphans(config, getManifestRuntimeIds(manifest), name, 'remove');
 
-    if (manifest?.agentFiles?.length) {
-      const removedAgentFiles = await removeExtensionAgentFilesForAllAgents(projectDir, config.agents, manifest);
-      pruneInstalledAgentFiles(config.agents, collectManifestAgentFileTargets(manifest));
+    const trackedAgentFileTargets = manifest?.agentFiles?.length
+      ? collectManifestAgentFileTargets(manifest)
+      : collectTrackedExtensionAgentFileTargets(config.agents, name);
+
+    if (Array.from(trackedAgentFileTargets.values()).some(targets => targets.length > 0)) {
+      const removedAgentFiles = manifest?.agentFiles?.length
+        ? await removeExtensionAgentFilesForAllAgents(projectDir, config.agents, manifest)
+        : await removeAgentFilesForAllAgentsByTargets(projectDir, config.agents, trackedAgentFileTargets);
+      pruneInstalledAgentFiles(config.agents, trackedAgentFileTargets);
+      pruneAgentFileSources(config.agents, trackedAgentFileTargets);
+      pruneManagedAgentFiles(config.agents, trackedAgentFileTargets);
       for (const [agentId, files] of removedAgentFiles) {
         if (files.length > 0) {
           console.log(chalk.green(`✓ Agent files removed for ${agentId}: ${files.join(', ')}`));

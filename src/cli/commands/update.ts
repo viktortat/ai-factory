@@ -7,10 +7,11 @@ import {getCurrentVersion, loadConfig, saveConfig} from '../../core/config.js';
 import {compareExtensionVersions, getExtensionsDir, getNpmVersionCheckResult, loadExtensionManifest} from '../../core/extensions.js';
 import { hydrateProjectAgentRegistry } from '../../core/agents.js';
 import {
+  buildExtensionAgentFileSources,
   buildManagedSkillsState,
-  buildManagedSubagentsState,
   getAvailableSkills,
   partitionSkills,
+  rebuildManagedAgentFilesForAgents,
   type SkillUpdateEntry,
   type SubagentUpdateEntry,
   updateSkills,
@@ -22,6 +23,7 @@ import {
   installExtensionAgentFilesForAllAgents,
   installSkillsForAllAgents,
   collectReplacedSkills,
+  mergeAgentFileSources,
   mergeInstalledAgentFiles,
   refreshExtensions,
 } from '../../core/extension-ops.js';
@@ -55,6 +57,8 @@ function formatReason(reason: string): string {
       return 'install failed';
     case 'source-missing':
       return 'source unavailable';
+    case 'extension-refresh':
+      return 'extension refresh';
     default:
       return reason;
   }
@@ -248,6 +252,7 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
 
       const subagentResult = await updateSubagents(agent, projectDir, { force });
       agent.installedAgentFiles = subagentResult.installedAgentFiles;
+      agent.agentFileSources = subagentResult.agentFileSources;
       subagentEntriesByAgent.set(agent.id, subagentResult.entries);
     }
 
@@ -315,10 +320,37 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
     for (const ext of extensions) {
       const extensionDir = path.join(getExtensionsDir(projectDir), ext.name);
       const manifest = await loadExtensionManifest(extensionDir);
-      if (!manifest?.agentFiles?.length) continue;
+      if (!manifest?.agentFiles?.length) {
+        const preservesTrackedAgentFiles = config.agents.some(agent =>
+          Object.values(agent.agentFileSources ?? {}).some(
+            source => source.kind === 'extension' && source.extensionName === ext.name,
+          ),
+        );
+        if (preservesTrackedAgentFiles) {
+          console.log(chalk.yellow(`⚠ Extension "${ext.name}" agent file manifest missing — preserving tracked agent file state`));
+        }
+        continue;
+      }
 
       const results = await installExtensionAgentFilesForAllAgents(projectDir, config.agents, extensionDir, manifest);
       mergeInstalledAgentFiles(config.agents, results);
+      mergeAgentFileSources(config.agents, buildExtensionAgentFileSources(manifest));
+
+      for (const [agentId, installed] of results) {
+        if (installed.length === 0) {
+          continue;
+        }
+
+        const existingEntries = subagentEntriesByAgent.get(agentId) ?? [];
+        existingEntries.push(
+          ...installed.map(subagent => ({
+            subagent,
+            status: 'changed' as const,
+            reason: 'extension-refresh',
+          })),
+        );
+        subagentEntriesByAgent.set(agentId, existingEntries);
+      }
     }
 
     // Re-apply extension injections
@@ -338,10 +370,11 @@ export async function updateCommand(options: UpdateCommandOptions = {}): Promise
       const { base: baseSkills } = partitionSkills(agent.installedSkills);
       const managedBaseSkills = baseSkills.filter(skill => availableSkills.includes(skill) && !finalReplacedSkills.has(skill));
       agent.managedSkills = await buildManagedSkillsState(projectDir, agent, managedBaseSkills);
-      if (agent.agentsDir) {
-        agent.managedAgentFiles = await buildManagedSubagentsState(projectDir, agent, agent.installedAgentFiles ?? []);
-      }
     }
+    await rebuildManagedAgentFilesForAgents(projectDir, config.agents, {
+      preserveExistingOnMissingSource: true,
+      warn: (message) => console.log(chalk.yellow(`⚠ ${message}`)),
+    });
 
     config.version = currentVersion;
     await saveConfig(projectDir, config);

@@ -87,7 +87,8 @@ If the config file is missing, use the same defaults as `/aif-plan`:
 Branch creation (full mode only):
 - In full mode, before determining the plan file path, you MUST ensure a feature branch exists.
 - If `git.enabled = false` or `git.create_branches = false` → do NOT create or switch branches. Derive a slug from the request and use that slug for the full-mode plan filename under the resolved plans directory.
-- If the current branch is already a feature branch (contains `/` in the name) → use it as-is, do not create a new one.
+- Treat the current branch as an AI Factory feature branch only if it starts with the configured `git.branch_prefix`. If `git.branch_prefix` is missing, use the default `feature/` prefix. Do not infer feature-branch status merely from the presence of `/` in the branch name.
+- If the current branch is already an AI Factory feature branch by that prefix rule → use it as-is, do not create a new one.
 - If the current branch is the configured base branch, `main`, `master`, or any other non-feature branch → derive a branch name from the request using the `/aif-plan` naming convention (`<type>/<short-description>`, lowercase, hyphens, max 50 chars) and create it from the configured base branch:
   ```
   git checkout <configured-base-branch>
@@ -147,3 +148,4 @@ Output:
 - Return a concise summary only.
 - Include: final plan path, mode used, and final critique status.
 - Include: `needs_further_refinement: yes/no` with a list of remaining material issues (if any) so the caller knows whether to launch another plan-polisher.
+
